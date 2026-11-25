@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>菁英活動系統｜從過去經驗到未來創新</title>
+<style>
+:root{--night:#17343f;--teal:#2a6f78;--amber:#d9a441;--paper:#f4e8cb;--paper2:#fbf3dd;--ink:#2a2418;--mut:#7b6f55;--line:#dccb98;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+.hero{position:relative;min-height:380px;display:flex;align-items:flex-end;background:url(img/home.jpg) center 42%/cover;color:#fff}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,36,48,.62),rgba(12,36,48,.15) 45%,rgba(120,70,10,.15) 55%,rgba(120,70,10,.5)),linear-gradient(0deg,rgba(15,25,30,.85),rgba(15,25,30,0) 65%)}
+.hero .in{position:relative;width:100%;max-width:1040px;margin:0 auto;padding:28px 20px 30px}
+.hero small{letter-spacing:.3em;font-size:12px;opacity:.9;text-transform:uppercase}
+.hero h1{margin:4px 0 6px;font:700 clamp(28px,5vw,46px)/1.2 "Noto Serif TC","Songti TC","PMingLiU",serif;letter-spacing:.06em;text-shadow:0 2px 12px rgba(0,0,0,.55)}
+.hero p{margin:0;max-width:560px;opacity:.95;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.era{display:flex;justify-content:space-between;gap:12px;margin-top:16px;font-size:13px;letter-spacing:.12em}
+.era span{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:2px 14px}
+.bridge{height:14px;background:repeating-linear-gradient(90deg,#6b4a1e 0 18px,#8a6329 18px 22px);border-top:3px solid var(--amber);border-bottom:3px solid #4a3210}
+.wrap{max-width:1040px;margin:0 auto;padding:26px 20px 56px}
+.lead{color:var(--mut);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
+.card{position:relative;background:var(--paper2);border:1px solid var(--line);border-top:6px solid var(--c);border-radius:12px;padding:16px 18px 18px;box-shadow:0 4px 14px rgba(90,70,20,.12)}
+.card .ic{position:absolute;top:10px;right:14px;font-size:30px;opacity:.9}
+.card .gl{font:700 12px/1 system-ui;letter-spacing:.15em;color:var(--c)}
+.card h2{margin:4px 0 2px;font:700 20px/1.3 "Noto Serif TC","Songti TC",serif;color:var(--night)}
+.card p{margin:0 0 12px;color:var(--mut);font-size:13.5px}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.roles a{display:block;text-align:center;text-decoration:none;font-size:14px;padding:8px 4px;border-radius:10px;border:1px solid var(--c);color:var(--c);background:#fffaf0;font-weight:600;transition:.15s}
+.roles a:hover,.roles a:focus-visible{background:var(--c);color:#fff;transform:translateY(-1px);outline:none}
+.roles a.stu{background:var(--c);color:#fff}
+.roles a.stu:hover{filter:brightness(1.1)}
+.demo{display:block;margin-top:8px;text-align:center;font-size:12.5px;color:var(--mut);text-decoration:none}.demo:hover{color:var(--c);text-decoration:underline}
+.foot{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.foot div{border-left:4px solid var(--amber);background:rgba(255,250,235,.7);padding:8px 14px;border-radius:0 10px 10px 0;font-size:13.5px;color:var(--mut)}
+.foot b{color:var(--night)}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:0 20px 28px}
+@media(max-width:520px){.hero{min-height:320px}.era{font-size:11px}}
+</style></head>
+<body>
+<header class="hero"><div class="in">
+  <small>Adventure Education · Elite Activities</small>
+  <h1>菁英活動系統</h1>
+  <p>從過去的經驗，走向未來的創新。報名、編組、點名、請假、闖關，一座橋接起每一次出發。</p>
+  <div class="era"><span>過去經驗 Experience</span><span>未來創新 Innovation</span></div>
+</div></header>
+<div class="bridge"></div>
+<main class="wrap">
+  <p class="lead">五個活動各自獨立管理資料。請選擇活動與你的身分進入。</p>
+  <div class="grid">
+    <section class="card" style="--c:#4a7c3a"><span class="ic">🧭</span><div class="gl">G7</div><h2>校外教學 × 童軍定向</h2><p>動物園闖關、小隊行動與定向任務</p>
+      <div class="roles"><a href="https://g7fieldtrip.web.app/admin.html" target="_blank" rel="noopener">行政後台</a><a href="https://g7fieldtrip.web.app/teacher.html" target="_blank" rel="noopener">教師端</a><a class="stu" href="https://g7fieldtrip.web.app/" target="_blank" rel="noopener">學生端</a></div></section>
+    <section class="card" style="--c:#2f6b9a"><span class="ic">⛰️</span><div class="gl">G8</div><h2>圓夢合歡</h2><p>登山行前訓練、山訓請假與補訓</p>
+      <div class="roles"><a href="https://hiking-training.web.app/" target="_blank" rel="noopener">行政後台</a><a href="https://hiking-training.web.app/" target="_blank" rel="noopener">教師端</a><a class="stu" href="https://hiking-training.web.app/" target="_blank" rel="noopener">學生端</a></div></section>
+    <section class="card" style="--c:#c4702a"><span class="ic">⛺</span><div class="gl">G8</div><h2>熱血三國 ‧ 隔宿露營</h2><p>露營任務、小隊編組與點名</p>
+      <div class="roles"><a href="https://three-kingdoms-kcislk.web.app/index.html" target="_blank" rel="noopener">行政後台</a><a href="https://three-kingdoms-kcislk.web.app/index.html" target="_blank" rel="noopener">教師端</a><a class="stu" href="https://three-kingdoms-kcislk.web.app/index.html" target="_blank" rel="noopener">學生端</a></div></section>
+    <section class="card" style="--c:#2a7f86"><span class="ic">🌏</span><div class="gl">G9</div><h2>教育旅行</h2><p>新加坡城市探索 GPS 闖關與限時挑戰</p>
+      <div class="roles"><a href="g9/admin.html">行政後台</a><a href="g9/teacher.html">教師端</a><a class="stu" href="g9/student.html">學生端</a></div>
+      <a class="demo" href="g9/student.html?demo=1">🧪 用虛擬學生體驗</a></section>
+    <section class="card" style="--c:#7b4fa0"><span class="ic">🚴</span><div class="gl">G10</div><h2>單車環臺 × SEL</h2><p>車訓、行前訓練請假與補訓、手冊與檔案</p>
+      <div class="roles"><a href="g10/admin.html">行政後台</a><a href="g10/teacher.html">教師端</a><a class="stu" href="g10/student.html">學生端</a></div>
+      <a class="demo" href="g10/student.html?demo=1">🧪 用虛擬學生體驗</a></section>
+  </div>
+  <div class="foot">
+    <div><b>學生</b>：進入後從名單選擇自己的班級與姓名。</div>
+    <div><b>教師／行政</b>：直接進入。網址請只提供給參加的師生。</div>
+    <div><b>體驗模式</b>：卡片下方「🧪 用虛擬學生體驗」可用假資料瀏覽學生端，不影響正式資料。</div>
+    <div><b>雲端同步</b>：畫面上方標籤顯示「☁️ 雲端同步」即為多人共用。</div>
+  </div>
+</main>
+<footer>中學部活動組 ‧ 菁英活動資訊系統</footer>
+</body></html>

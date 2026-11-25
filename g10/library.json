@@ -1,0 +1,143 @@
+{
+ "folders": [
+  {
+   "id": "root114",
+   "name": "114學年度（上屆）資料・僅供參考",
+   "parent": ""
+  },
+  {
+   "id": "important",
+   "name": "重要資訊",
+   "parent": "root114"
+  },
+  {
+   "id": "forms",
+   "name": "報名與申請表單",
+   "parent": "root114"
+  },
+  {
+   "id": "training",
+   "name": "行前訓練通知",
+   "parent": "root114"
+  }
+ ],
+ "files": [
+  {
+   "id": "f1",
+   "name": "2026單車環台相關資訊（公告版）.pdf",
+   "folder": "important",
+   "path": "library/important/info-announcement.pdf",
+   "size": 538305,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f2",
+   "name": "2026單車環臺活動重要時程.pdf",
+   "folder": "important",
+   "path": "library/important/schedule.pdf",
+   "size": 228542,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f3",
+   "name": "2026單車環臺活動同意書.pdf",
+   "folder": "forms",
+   "path": "library/forms/consent.pdf",
+   "size": 348314,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f4",
+   "name": "菁英活動無法參加證明書.pdf",
+   "folder": "forms",
+   "path": "library/forms/cannot-attend.pdf",
+   "size": 423262,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f5",
+   "name": "彎把車申請切結書.pdf",
+   "folder": "forms",
+   "path": "library/forms/bent-bar.pdf",
+   "size": 160956,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f6",
+   "name": "彎把車申請切結書（可編輯）.docx",
+   "folder": "forms",
+   "path": "library/forms/bent-bar.docx",
+   "size": 18708,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f7",
+   "name": "單車補訓申請單.docx",
+   "folder": "forms",
+   "path": "library/forms/makeup-training.docx",
+   "size": 47887,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f8",
+   "name": "第一次行前訓練通知（12/6）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-1.pdf",
+   "size": 423183,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f9",
+   "name": "第二次行前訓練通知（12/20）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-2.pdf",
+   "size": 1437190,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f10",
+   "name": "第三次行前訓練通知（1/11）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-3.pdf",
+   "size": 973408,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f11",
+   "name": "第四次行前訓練通知（3/7）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-4.pdf",
+   "size": 1035983,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f12",
+   "name": "第五次行前訓練通知（3/15）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-5.pdf",
+   "size": 536019,
+   "at": "2026-11-12",
+   "by": "活動組"
+  },
+  {
+   "id": "f13",
+   "name": "第六次行前訓練通知（3/21）.pdf",
+   "folder": "training",
+   "path": "library/training/notice-6.pdf",
+   "size": 595677,
+   "at": "2026-11-12",
+   "by": "活動組"
+  }
+ ]
+}

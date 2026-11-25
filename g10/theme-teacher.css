@@ -1,0 +1,15 @@
+/* G10 教師端：團體合照（青藍外套＋暖琥珀牆面） */
+body.th-t{--ac:#2b7a80;--bg:#f2e7c9;--card:#fbf4de;--ink:#27332f;--mut:#76705a;--line:#dccb98;color-scheme:light;
+  background:var(--bg) url(img/team.jpg) no-repeat center/cover fixed}
+body.th-t::before{content:"";position:fixed;inset:0;background:rgba(242,231,201,.90);z-index:-1}
+body.th-t .top{min-height:150px;align-items:flex-end;padding:18px 20px;background:linear-gradient(0deg,rgba(20,70,76,.88),rgba(20,70,76,.1)),url(img/team.jpg) center 62%/cover;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+body.th-t .top b{font-size:22px;letter-spacing:.06em}
+body.th-t .top span{background:rgba(240,190,90,.92);color:#40300f;text-shadow:none;font-weight:600}
+body.th-t .tabs button{border-radius:8px;background:#fbf4de;border-color:#d8c58a}
+body.th-t .tabs button.on{background:#2b7a80;border-color:#2b7a80}
+body.th-t .card{border-radius:10px;border-left:5px solid #d9a441;box-shadow:0 3px 10px rgba(90,70,20,.12)}
+body.th-t .card h3{color:#1f5f64}
+body.th-t .card h3::before{content:"👥 ";font-size:14px}
+body.th-t button.pri{background:#2b7a80}
+body.th-t table th{background:#efe0b0}
+body.th-t .login{background:rgba(251,244,222,.94);border-radius:12px}

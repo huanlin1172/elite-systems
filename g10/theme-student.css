@@ -1,0 +1,14 @@
+/* G10 學生端：單車騎行（晴空藍天＋紫色車衣） */
+body.th-s{--ac:#6b3f95;--bg:#fbf5e4;--card:#fffdf6;--ink:#2a2338;--mut:#7a6f88;--line:#eadfc4;color-scheme:light;
+  background:var(--bg) url(img/ride.jpg) no-repeat center top/cover fixed}
+body.th-s::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg,rgba(251,245,228,.55),rgba(251,245,228,.93) 38%,#fbf5e4);z-index:-1}
+body.th-s .top{min-height:170px;align-items:flex-end;padding:18px 20px;background:linear-gradient(0deg,rgba(60,28,92,.82),rgba(60,28,92,.05)),url(img/ride.jpg) center 30%/cover;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+body.th-s .top b{font-size:22px;letter-spacing:.05em}
+body.th-s .top span{background:rgba(255,224,130,.9);color:#3b2160;text-shadow:none;font-weight:600}
+body.th-s .tabs button{border-radius:99px;border-color:#d9c8f0;background:#fffdf6}
+body.th-s .tabs button.on{background:linear-gradient(135deg,#7b4fa0,#2f8f9d);border-color:transparent}
+body.th-s .card{border-radius:18px;box-shadow:0 6px 18px rgba(80,50,120,.10);backdrop-filter:blur(2px)}
+body.th-s .card h3{color:#5a3282}
+body.th-s .card h3::before{content:"🚴 ";font-size:14px}
+body.th-s button.pri{background:linear-gradient(135deg,#7b4fa0,#2f8f9d);border-color:transparent}
+body.th-s .login{background:rgba(255,253,246,.92);border-radius:20px}
