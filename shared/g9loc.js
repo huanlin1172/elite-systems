@@ -110,7 +110,7 @@
     if (KC.demo) { var tryDemo = function () { try { return demoSeed(); } catch (e) { console.error("demoSeed", e.message); } }; if (!tryDemo()) setTimeout(function () { if (tryDemo()) { c.sync && c.sync(); c.render(); } }, 400); }
     if (role === "student") {
       startPing(c); var q0 = c.V.quest;
-      c.V.quest = function () { var m = c.me(), t = m && KC.team(m.team), ld = t && t.leader === m.id; return (ld ? '<div class="card"><b>📡 您是 ' + E(t.code || t.name) + ' 小隊長</b><div id="g9st" class="mut">' + E(st || "定位準備中…") + '</div><div class="mut">請保持本頁開啟並允許定位，老師與行政端會即時看到小隊位置。</div></div>' : "") + q0(); };
+      c.V.quest = function () { var m = c.me(), t = m && KC.team(m.team), ld = t && t.leader === m.id; return (ld ? '<div class="card"><b>📡 您是 ' + E(t.code || t.name) + ' 小隊長</b><div id="g9st" class="mut">' + E(st || "定位準備中…") + '</div><div class="mut">請保持本頁開啟並允許定位。</div></div>' : "") + q0(); };
     } else { c.V.qmap = mapView(role); }
     document.addEventListener("change", function (e) { var t = e.target; if (!t.dataset || !t.dataset.lcls) return; if (role === "teacher") { try { localStorage.setItem("kcg9cls", t.value); } catch (x) {} } else KCL.filter = t.value; fitted = false; c.render(); });
     document.addEventListener("click", function (e) {

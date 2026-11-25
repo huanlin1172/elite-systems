@@ -123,9 +123,14 @@ var KCG9 = (function () {
     markRead(tid);
     return '<div class="g9thr" id="g9thr">' + (list.map(function (m) {
       var self = m.from === mine;
-      return '<div class="g9m' + (self ? " me" : "") + '"><div class="mut" style="font-size:12px">' + E(who(m)) + "・" + E(m.at) + '</div><div style="white-space:pre-wrap">' + E(m.text) + "</div></div>";
+      return '<div class="g9m' + (self ? " me" : "") + '"><div class="mut" style="font-size:12px">' + E(who(m)) + "・" + E(m.at) + "</div>" + (m.text ? '<div style="white-space:pre-wrap">' + E(m.text) + "</div>" : "") +
+        (m.img ? '<img data-photo="' + E(m.img) + '" data-g9zoom="1" alt="圖片" style="display:block;max-width:220px;max-height:260px;border-radius:10px;margin-top:4px;cursor:zoom-in">' : "") +
+        (m.audio ? '<div style="margin-top:4px">🎤 語音 ' + (m.dur ? m.dur + " 秒" : "") + '<audio data-aud="' + E(m.audio) + '" controls preload="none" style="display:block;width:230px;max-width:100%;margin-top:2px"></audio></div>' : "") + "</div>";
     }).join("") || '<p class="mut">還沒有訊息，傳第一則吧。</p>') + "</div>" +
-      '<div class="row" style="align-items:flex-end"><textarea id="g9msg" placeholder="輸入訊息…" style="flex:1;min-height:56px;margin:0"></textarea><button class="pri" data-do="g9send" data-team="' + E(tid) + '">傳送</button></div>';
+      '<div class="row" style="align-items:flex-end"><textarea id="g9msg" placeholder="輸入訊息…" style="flex:1;min-height:56px;margin:0"></textarea><button class="pri" data-do="g9send" data-team="' + E(tid) + '">傳送</button></div>' +
+      '<div class="row">' + (rec ? '<button class="dng" data-do="g9recStop" data-team="' + E(tid) + '">⏹ 停止並傳送語音（<span id="g9rt">0</span> 秒）</button><button class="sm sec" data-do="g9recCancel">取消</button>'
+        : '<button class="sec" data-do="g9pickImg" data-team="' + E(tid) + '">📷 傳送圖片</button><button class="sec" data-do="g9rec" data-team="' + E(tid) + '">🎤 錄製語音</button>') +
+      '<input type="file" accept="image/*" id="g9img" data-team="' + E(tid) + '" style="display:none"><span class="mut" id="g9busy"></span></div>';
   }
   function teamBtn(t) { var n = unread(t.id); return '<button class="sm ' + (ui.chatTeam === t.id ? "pri" : "sec") + '" data-do="g9pick" data-team="' + t.id + '">' + E(code(t)) + (n ? ' <i class="bdg">' + n + "</i>" : "") + "</button>"; }
   function chatStaff() {
@@ -142,7 +147,34 @@ var KCG9 = (function () {
     var t = myTeam(); if (!t) return '<div class="card"><p class="mut">尚未編入小隊，無法聯繫。</p></div>';
     return '<div class="card"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端。</p>" + thread(t.id) + "</div>";
   }
-  function post(tid, text) { KC.S.chat = KC.S.chat || []; var m = me(); KC.S.chat.push({ id: "c" + KC.uid(), kind: "chat", team: tid, from: ROLE, by: ROLE === "student" ? (m && m.name) || "" : ROLE === "teacher" ? myCls() + " 導師" : "行政", text: text, at: stamp(), t: Date.now() }); }
+  function post(tid, text, extra) { KC.S.chat = KC.S.chat || []; var m = me(); KC.S.chat.push(Object.assign({ id: "c" + KC.uid(), kind: "chat", team: tid, from: ROLE, by: ROLE === "student" ? (m && m.name) || "" : ROLE === "teacher" ? myCls() + " 導師" : "行政", text: text, at: stamp(), t: Date.now() }, extra || {})); }
+  /* 圖片與語音：檔案存在 photos 集合（與闖關照片相同），訊息只記錄編號 */
+  var rec = null, REC_MAX = 60;
+  function sendMedia(tid, data, extra, label) {
+    var b = $("g9busy"); if (b) b.textContent = "上傳中…";
+    var pid = "chat|" + tid + "|" + Date.now();
+    return KCQ.putPhoto(pid, data).then(function () { CTX.sync(); var x = {}; x[extra.key] = pid; if (extra.dur) x.dur = extra.dur; post(tid, "", x); CTX.done(); }, function (e) { if (b) b.textContent = ""; alert(label + "傳送失敗：" + ((e && e.message) || e)); });
+  }
+  function recStart(tid) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return alert("這個瀏覽器不支援錄音，請改用文字或更新瀏覽器（iPhone 請用 Safari 14.5 以上）");
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var types = ["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/aac"], mt = "";
+      for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(types[i])) { mt = types[i]; break; }
+      var mr = new MediaRecorder(stream, mt ? { mimeType: mt, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
+      rec = { mr: mr, chunks: [], start: Date.now(), team: tid, stream: stream, send: false, timer: null };
+      mr.ondataavailable = function (e) { if (e.data && e.data.size) rec.chunks.push(e.data); };
+      mr.onstop = function () {
+        var r = rec; rec = null; clearInterval(r.timer); r.stream.getTracks().forEach(function (t) { t.stop(); });
+        if (!r.send) return CTX.render();
+        var dur = Math.max(1, Math.round((Date.now() - r.start) / 1000)), blob = new Blob(r.chunks, { type: mr.mimeType || mt || "audio/webm" });
+        if (blob.size > 700 * 1024) { CTX.render(); return alert("語音檔太大，請錄短一點（建議 60 秒內）"); }
+        var fr = new FileReader(); fr.onload = function () { CTX.render(); sendMedia(r.team, fr.result, { key: "audio", dur: dur }, "語音"); }; fr.readAsDataURL(blob);
+      };
+      mr.start(1000);
+      rec.timer = setInterval(function () { var s = Math.round((Date.now() - rec.start) / 1000), el = $("g9rt"); if (el) el.textContent = s; if (s >= REC_MAX) { rec.send = true; rec.mr.stop(); } }, 500);
+      CTX.render();
+    }, function () { alert("無法使用麥克風，請在瀏覽器設定允許「麥克風」"); });
+  }
 
   /* ================= 導師：我的班級 ================= */
   function pingTxt(t) {
@@ -207,7 +239,7 @@ var KCG9 = (function () {
         ROLE === "student" ? '<button class="sm pri" data-do="g9openTask" data-id="' + t.id + '" data-g9x="1">開始作答</button>' : '<button class="sm pri" data-do="tab" data-t="g9cls" data-g9x="1">查看</button>');
     });
     var nc = chats.filter(function (x) { return (x.t || 0) > (s.c || 0); });
-    if (nc.length) { var l = nc[nc.length - 1], lt = KC.team(l.team); toast("<b>💬 " + (ROLE === "student" ? "老師傳來訊息" : E(code(lt)) + " 傳來訊息") + "</b><div>" + E(l.text).slice(0, 80) + "</div>", '<button class="sm pri" data-do="g9goChat" data-team="' + E(l.team) + '" data-g9x="1">回覆</button>'); }
+    if (nc.length) { var l = nc[nc.length - 1], lt = KC.team(l.team); toast("<b>💬 " + (ROLE === "student" ? "老師傳來訊息" : E(code(lt)) + " 傳來訊息") + "</b><div>" + (l.img ? "📷 圖片" : l.audio ? "🎤 語音訊息" : E(l.text).slice(0, 80)) + "</div>", '<button class="sm pri" data-do="g9goChat" data-team="' + E(l.team) + '" data-g9x="1">回覆</button>'); }
     seenSet({ b: Math.max(cur.b, s.b || 0), d: Math.max(cur.d, s.d || 0), c: Math.max(cur.c, s.c || 0) });
   }
   function tabBadges(root) {
@@ -229,12 +261,13 @@ var KCG9 = (function () {
       "@keyframes g9in{from{transform:translateY(-20px);opacity:0}}" +
       ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:rgba(0,0,0,.025);border-radius:12px;margin-bottom:8px}" +
       "body button.pri.sm,body .g9t button.pri{color:#fff}" +
+      "nav.tabs{flex-wrap:wrap;overflow-x:visible;row-gap:6px}nav.tabs button{flex:0 0 auto}" +
       ".g9m{max-width:85%;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px;align-self:flex-start}.g9m.me{align-self:flex-end;background:var(--okb)}";
     document.head.appendChild(st);
   })();
 
   /* ================= 掛載 ================= */
-  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave"], teacher: ["roll", "leave"], student: ["home", "leave", "att"] };
+  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team"] };
   function mount(role, ctx) {
     ROLE = role; CTX = ctx;
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
@@ -244,13 +277,19 @@ var KCG9 = (function () {
     if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "💬 小隊聯繫"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
     if (role === "student") { after("quest", ["g9battle", "📣 闖關戰況"]); after("g9battle", ["g9chat", "💬 聯絡老師"]); V.g9battle = battleRecv; }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
-    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
+    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
 
     H.g9pick = function (d) { ui.chatTeam = d.team; ctx.render(); };
     H.g9goChat = function (d) { ui.chatTeam = d.team; H.tab({ t: "g9chat" }); };
     H.g9rk = function (d, el) { ui.rkCls = el.value; ctx.render(); };
     H.g9send = function (d) { var v = ($("g9msg").value || "").trim(); if (!v) return; post(d.team, v); ctx.done(); };
     H.g9sendAll = function () { var v = ($("g9all").value || "").trim(); if (!v) return; var l = teams(myCls()); if (!confirm("傳給 " + l.map(code).join("、") + " 共 " + l.length + " 隊？")) return; l.forEach(function (t) { post(t.id, v); }); ctx.done(); alert("已傳送給 " + l.length + " 個小隊"); };
+    H.g9pickImg = function () { var f = $("g9img"); if (f) f.click(); };
+    H.g9rec = function (d) { if (rec) return; recStart(d.team); };
+    H.g9recStop = function () { if (!rec) return; rec.send = true; rec.mr.stop(); };
+    H.g9recCancel = function () { if (!rec) return; rec.send = false; rec.mr.stop(); };
+    document.addEventListener("change", function (e) { if (e.target.id === "g9img" && e.target.files[0]) { var tid = e.target.getAttribute("data-team"), f = e.target.files[0]; e.target.value = ""; KCQ.compress(f, function (d) { sendMedia(tid, d, { key: "img" }, "圖片"); }); } });
+    document.addEventListener("click", function (e) { var z = e.target.closest && e.target.closest("[data-g9zoom]"); if (z && z.src) { var w = window.open(""); if (w) w.document.write('<title>圖片</title><body style="margin:0;background:#000"><img src="' + z.src + '" style="max-width:100%;display:block;margin:auto">'); } });
     H.g9openTask = function (d) { if (role !== "student") return; KCQ.openTask(d.id); H.tab({ t: "quest" }); };
     if (role !== "admin") return;
     H.g9disp = function () {
