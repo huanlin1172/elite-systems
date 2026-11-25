@@ -108,6 +108,7 @@
   H.cancel = function (d) { S.leaves = S.leaves.filter(function (l) { return l.id !== d.id; }); done(); };
 
   if (window.KCH) KCH.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
+  if (window.KCPBL) KCPBL.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCP) KCP.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCM) KCM.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCW) KCW.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });

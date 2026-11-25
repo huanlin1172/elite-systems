@@ -103,6 +103,7 @@
   H.quick = function (d) { $("sc_r").value = d.r; $("sc_p").value = d.p; };
 
   if (window.KCH) KCH.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
+  if (window.KCPBL) KCPBL.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCP) KCP.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCM) KCM.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCW) KCW.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });

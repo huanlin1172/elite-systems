@@ -240,6 +240,7 @@
   H.wipe = function () { if ($("cf").value !== "RESET") return alert("請輸入 RESET"); KC.reset(); render(); };
 
   if (window.KCH) KCH.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
+  if (window.KCPBL) KCPBL.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCP) KCP.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCM) KCM.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCW) KCW.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
