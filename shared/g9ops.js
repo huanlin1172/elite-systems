@@ -140,7 +140,7 @@ var KCG9 = (function () {
   }
   function chatStudent() {
     var t = myTeam(); if (!t) return '<div class="card"><p class="mut">尚未編入小隊，無法聯繫。</p></div>';
-    return '<div class="card"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端，同隊同學都看得到。</p>" + thread(t.id) + "</div>";
+    return '<div class="card"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端。</p>" + thread(t.id) + "</div>";
   }
   function post(tid, text) { KC.S.chat = KC.S.chat || []; var m = me(); KC.S.chat.push({ id: "c" + KC.uid(), kind: "chat", team: tid, from: ROLE, by: ROLE === "student" ? (m && m.name) || "" : ROLE === "teacher" ? myCls() + " 導師" : "行政", text: text, at: stamp(), t: Date.now() }); }
 

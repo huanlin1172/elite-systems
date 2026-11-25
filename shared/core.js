@@ -349,6 +349,36 @@
       return;
     }
     if (role !== "student") return onOk("");
+    if (id === "g9") {   /* G9：學生端僅限 30 隊小隊長登入（依專題分組名單）；選小隊＋密碼（預設＝小隊編碼，例如 901-1） */
+      var GK = "kcauth:g9:student", GP = "kcpick:g9", GO = ["901", "902", "903", "904", "9A", "9B", "9C", "9D", "9E", "9F"];
+      var isCap = function (sid) { var st = KC.student(sid), tm = st && KC.team(st.team); return !!(tm && (tm.leader === sid || (tm.roles && tm.roles.leader === sid))); };
+      var gc = sessionStorage.getItem(GK);
+      if (!gc) { try { gc = localStorage.getItem(GP); } catch (e) {} }
+      if (gc && isCap(gc)) { sessionStorage.setItem(GK, gc); return onOk(gc); }
+      sessionStorage.removeItem(GK); try { localStorage.removeItem(GP); } catch (e) {}
+      var S9 = KC.reload(), TS = S9.teams.filter(function (t) { return /^(90[1-4]|9[A-F])-[1-3]$/.test(t.code || ""); })
+        .sort(function (a, b) { return GO.indexOf(a.cls) - GO.indexOf(b.cls) || (a.code < b.code ? -1 : 1); });
+      var capName = function (t) { var st = KC.student(t.leader || (t.roles || {}).leader); return st && !/^LD-/.test(st.id) ? st.name : ""; };
+      app.innerHTML = '<div class="login"><h1>' + KC.esc(cfg.name) + "</h1><h2>" + label + '（限各隊小隊長）</h2>' +
+        (TS.length ? '<select id="g9t" style="width:100%;margin-bottom:10px"><option value="">請選擇你的小隊</option>' +
+          GO.map(function (c) { var l = TS.filter(function (t) { return t.cls === c; }); return l.length ? '<optgroup label="' + c + ' 班">' + l.map(function (t) { var n = capName(t); return '<option value="' + KC.esc(t.id) + '">' + KC.esc(t.code) + (n ? "　小隊長 " + KC.esc(n) : "") + "</option>"; }).join("") + "</optgroup>" : ""; }).join("") +
+          '</select><input id="g9pw" type="password" placeholder="密碼（預設：小隊編碼，例如 901-1）" autocomplete="off"><button class="pri" id="g9go">小隊長登入</button><p class="mut" id="msg">學生端只開放給 30 個專題小隊的小隊長，其他組員請跟著小隊長的手機一起作答。</p>'
+          : '<p class="mut" id="msg">行政端尚未完成小隊編組，請稍後再試。</p>') + "</div>";
+      if (!TS.length) return;
+      document.getElementById("g9go").onclick = function () {
+        var tid = document.getElementById("g9t").value, mm = document.getElementById("msg");
+        if (!tid) { mm.textContent = "請先選擇你的小隊"; return; }
+        var t = KC.team(tid), sid = t.leader || (t.roles || {}).leader;
+        if (!sid || !KC.student(sid)) sid = KC.codeLogin ? KC.codeLogin(t.code) : "";
+        if (!sid) { mm.textContent = "這個小隊尚未設定小隊長，請洽行政端"; return; }
+        var st = KC.student(sid);
+        KC.pwCheck(KC.pwKey("student", sid), document.getElementById("g9pw").value, KC.defPws(st.cls, st.team)).then(function (ok) {
+          if (!ok) { mm.textContent = "密碼不正確（預設為小隊編碼，例如 901-1）"; return; }
+          sessionStorage.setItem(GK, sid); try { localStorage.setItem(GP, sid); } catch (e) {} onOk(sid);
+        });
+      };
+      return;
+    }
     var k = "kcauth:" + id + ":student", pk = "kcpick:" + id;
     var cur = sessionStorage.getItem(k);
     if (!cur) { try { cur = localStorage.getItem(pk); } catch (e) {} if (cur && KC.student(cur)) sessionStorage.setItem(k, cur); else cur = ""; }
