@@ -1,7 +1,7 @@
 /* 體驗模式（網址加 ?demo=1）：虛擬學生「王小明」＋範例資料，只存在這個瀏覽器，不連雲端。
    學生端、教師端、行政端使用同一份體驗資料，可互相驗證（例如學生送出請假 → 教師端核准 → 回學生端看結果）。 */
 (function (w) {
-  if (w.KC && !KC.demo && /[?&]demo=1/.test(location.search)) {
+  if (false) {  /* 體驗模式已停用，不再顯示舊版快取提示 */
     var warn = document.createElement("div"); warn.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:99;background:#fde8e6;color:#b3261e;padding:10px 14px;font:14px/1.5 sans-serif;text-align:center";
     warn.textContent = "⚠️ 這個頁面載入的是舊版快取，無法進入體驗模式。請關閉分頁後重新開啟，或清除瀏覽器快取；網站也需要先更新部署。"; document.body.appendChild(warn); return;
   }

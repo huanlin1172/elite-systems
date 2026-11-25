@@ -25,7 +25,7 @@
   if (!cfg) { document.body.textContent = "未指定活動"; return; }
   document.title = cfg.name;
   document.documentElement.style.setProperty("--ac", cfg.color);
-  var DEMO = /[?&]demo=1/.test(location.search);   /* 體驗模式：虛擬學生＋獨立的本機資料，不連雲端 */
+  var DEMO = false;   /* 體驗模式已停用（虛擬學生體驗取消） */
   var KEY = "kcislk-elite" + (DEMO ? "-demo" : "") + ":" + id;
   var FB = DEMO ? null : (w.FIREBASE_CONFIG || null), CLOUD = !!FB;
 
@@ -265,7 +265,7 @@
   (function () { var st = document.createElement("style"); st.textContent = ".bdg{display:inline-flex;align-items:center;gap:3px;background:#d93025;color:#fff;font-style:normal;font-size:12px;font-weight:700;line-height:1;padding:3px 8px 3px 6px;border-radius:99px;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px rgba(217,48,37,.25)}.bdg::before{content:\"\\26A0\\FE0E\";font-size:12px}"; document.head.appendChild(st); })();
   document.addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("a[href^='#h_']"); if (a) { var sid = a.getAttribute("href").slice(1); mark("sec:" + sid); var b = a.querySelector(".bdg"); if (b) b.remove(); } });
   KC.head = function (role) {
-    return '<header class="top"><div><b>' + KC.esc(cfg.name) + '</b><span>' + role + '</span><span>' + (CLOUD ? "☁️ 雲端同步" : "💾 單機模式") + '</span></div><div class="hr"><a href="../index.html">總入口</a>' + (role === "學生端" ? '<button data-do="logout">切換身分</button>' : "") + ((role === "學生端" || role === "教師端") && !KC.demo ? '<button data-kcpw="' + (role === "學生端" ? "student" : "teacher") + '">🔑 改密碼</button>' + (role === "教師端" ? '<button data-do="logout">登出</button>' : "") : "") + '</div></header>';
+    return '<header class="top"><div><b>' + KC.esc(cfg.name) + '</b><span>' + role + '</span><span>' + (CLOUD ? "☁️ 雲端同步" : "💾 單機模式") + '</span></div><div class="hr">' + (role === "學生端" ? "" : '<a href="../index.html">總入口</a>') + (role === "學生端" ? '<button data-do="logout">切換身分</button>' : "") + ((role === "學生端" || role === "教師端") && !KC.demo ? '<button data-kcpw="' + (role === "學生端" ? "student" : "teacher") + '">🔑 改密碼</button>' + (role === "教師端" ? '<button data-do="logout">登出</button>' : "") : "") + '</div></header>';
   };
 
   /* ---------- 密碼（學生端／教師端）：預設＝班級＋小隊編號；首次登入後可自行修改。註：密碼僅在前端比對，屬基本防誤入，非嚴格安全機制 ---------- */
