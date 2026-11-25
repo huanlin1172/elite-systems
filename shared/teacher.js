@@ -110,6 +110,7 @@
   if (window.KCG) KCG.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCD) KCD.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCQ) KCQ.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
+  if (window.KCG9) KCG9.mount("teacher", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCW && KCW.finish) KCW.finish("teacher", TABS);
   document.addEventListener("click", function (e) { var t = e.target.closest("[data-do]"); if (t && t.tagName !== "SELECT" && H[t.dataset.do]) { if (t.tagName === "A") e.preventDefault(); sync(); H[t.dataset.do](t.dataset, t, e); } });
   document.addEventListener("change", function (e) { var t = e.target; if (t.tagName === "SELECT" && t.dataset.do && H[t.dataset.do]) { if (t.tagName === "A") e.preventDefault(); sync(); H[t.dataset.do](t.dataset, t, e); } });

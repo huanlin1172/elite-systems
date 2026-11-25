@@ -248,6 +248,7 @@
   if (window.KCD) KCD.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCB) KCB.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   if (window.KCQ) KCQ.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
+  if (window.KCG9) KCG9.mount("admin", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return null; } });
   document.addEventListener("click", function (e) { var t = e.target.closest("[data-do]"); if (t && t.tagName !== "SELECT" && H[t.dataset.do]) { if (t.tagName === "A") e.preventDefault(); if (t.dataset.do !== "tab") sync(); H[t.dataset.do](t.dataset, t, e); } });
   document.addEventListener("change", function (e) { var t = e.target; if (t.tagName === "SELECT" && t.dataset.do && H[t.dataset.do]) { if (t.tagName === "A") e.preventDefault(); sync(); H[t.dataset.do](t.dataset, t, e); } });
 

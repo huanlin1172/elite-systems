@@ -31,10 +31,10 @@
 
   function fresh() {
     return { settings: { open: true, deadline: "", quota: 0, adminPin: "admin", teacherPin: "teacher" },
-      students: [], teams: [], sessions: [], att: {}, leaves: [], notices: [], scores: [], folders: [], files: [], gallery: [], reminders: [] };
+      students: [], teams: [], sessions: [], att: {}, leaves: [], notices: [], scores: [], folders: [], files: [], gallery: [], reminders: [], chat: [] };
   }
   function norm(S) {
-    ["students", "teams", "sessions", "leaves", "notices", "scores", "folders", "files", "gallery", "msgs", "reminders", "msgs"].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
+    ["students", "teams", "sessions", "leaves", "notices", "scores", "folders", "files", "gallery", "msgs", "reminders", "chat"].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
     S.att = S.att || {}; S.settings = Object.assign({ open: true, deadline: "", quota: 0, adminPin: "admin", teacherPin: "teacher" }, S.settings); return S;
   }
   function loadLocal() { try { return norm(JSON.parse(localStorage.getItem(KEY)) || fresh()); } catch (e) { return fresh(); } }
@@ -55,7 +55,7 @@
   function flatten(S) {
     var m = {}, put = function (col, list) { (list || []).forEach(function (x, i) { m[col + "/" + enc(x.id)] = Object.assign({}, x, { _i: i }); }); };
     m["settings/main"] = S.settings;
-    put("students", S.students); put("teams", S.teams); put("sessions", S.sessions); put("notices", S.notices); put("scores", S.scores); put("leaves", S.leaves); put("folders", S.folders); put("files", S.files); put("gallery", S.gallery); put("reminders", S.reminders); put("msgs", S.msgs);
+    put("students", S.students); put("teams", S.teams); put("sessions", S.sessions); put("notices", (S.notices || []).concat(S.chat || []));  /* 小隊聯繫訊息（kind:"chat"）與公告共用 notices 集合 */ put("scores", S.scores); put("leaves", S.leaves); put("folders", S.folders); put("files", S.files); put("gallery", S.gallery); put("reminders", S.reminders); put("msgs", S.msgs);
     Object.keys(S.att || {}).forEach(function (sess) { Object.keys(S.att[sess]).forEach(function (sid) { m["att/" + enc(sess) + "__" + enc(sid)] = { sess: sess, sid: sid, v: S.att[sess][sid] }; }); });
     var q = S.quest;
     if (q) {
@@ -73,7 +73,7 @@
         .map(function (x) { var o = Object.assign({}, x); delete o._i; return o; });
     };
     if (g("settings").main) S.settings = Object.assign(S.settings, g("settings").main);
-    S.students = list("students"); S.teams = list("teams"); S.sessions = list("sessions"); S.notices = list("notices"); S.scores = list("scores"); S.leaves = list("leaves"); S.folders = list("folders"); S.files = list("files"); S.gallery = list("gallery"); S.reminders = list("reminders"); S.msgs = list("msgs");
+    S.students = list("students"); S.teams = list("teams"); S.sessions = list("sessions"); S.notices = list("notices"); S.chat = S.notices.filter(function (n) { return n.kind === "chat"; }); S.notices = S.notices.filter(function (n) { return n.kind !== "chat"; }); S.scores = list("scores"); S.leaves = list("leaves"); S.folders = list("folders"); S.files = list("files"); S.gallery = list("gallery"); S.reminders = list("reminders"); S.msgs = list("msgs");
     Object.keys(g("att")).forEach(function (k) { var d = g("att")[k]; (S.att[d.sess] = S.att[d.sess] || {})[d.sid] = d.v; });
     var tasks = list("tasks"), has = tasks.length || Object.keys(g("subs")).length || Object.keys(g("pings")).length || g("qcfg").main;
     if (has) {
@@ -272,6 +272,7 @@
   KC.defPws = function (cls, tid) {
     var out = [], t = tid && KC.team(tid), n = (String(tid || "").match(/\d+/) || [""])[0], nm = t ? (String(t.name).match(/\d+/) || [""])[0] : "";
     if (!tid) return [cls];
+    if (t && t.code) out.push(t.code, String(t.code).replace("-", ""));   /* G9：預設密碼也可用小隊編碼，例如 901-1 */
     [n, nm].forEach(function (x) { if (!x) return; var p = x.length < 2 ? "0" + x : x; [x, p].forEach(function (y) { out.push(cls + y, cls + "-" + y); }); });
     return out;
   };
@@ -313,6 +314,22 @@
         var m = String((e && e.code) || (e && e.message) || e);
         document.getElementById("msg").textContent = "連線失敗：" + m + (/admin-restricted|operation-not-allowed/.test(m) ? "（請到 Firebase 主控台 Authentication 啟用「匿名」登入）" : /permission/i.test(m) ? "（請確認 Firestore 規則）" : "");
       });
+      return;
+    }
+    if (role === "teacher" && !KC.demo && id === "g9") {   /* G9：班級導師只選班級，密碼預設＝班級（例如 901、9A） */
+      var gk = "kcauth:g9:teacher", gp = "kcpick:g9:teacher", gcur = sessionStorage.getItem(gk);
+      if (!gcur) { try { gcur = localStorage.getItem(gp); } catch (e) {} if (gcur) sessionStorage.setItem(gk, gcur); }
+      if (gcur) { try { localStorage.setItem("kcg9cls", gcur.split("|")[0]); } catch (e) {} return onOk(""); }
+      var GC = ["901", "902", "903", "904", "9A", "9B", "9C", "9D", "9E", "9F"];
+      app.innerHTML = '<div class="login"><h1>' + KC.esc(cfg.name) + "</h1><h2>" + label + '</h2><select id="tc" style="width:100%;margin-bottom:10px"><option value="">選擇您的導師班級</option>' + GC.map(function (c) { return "<option>" + c + "</option>"; }).join("") + '</select><input id="tpw" type="password" placeholder="密碼（預設：班級，例如 901）" autocomplete="off"><button class="pri" id="tgo">進入</button><p class="mut" id="msg"></p></div>';
+      document.getElementById("tgo").onclick = function () {
+        var c = document.getElementById("tc").value, m = document.getElementById("msg");
+        if (!c) { m.textContent = "請選擇班級"; return; }
+        KC.pwCheck(KC.pwKey("teacher", c + "|"), document.getElementById("tpw").value, [c, c.toLowerCase()]).then(function (ok) {
+          if (!ok) { m.textContent = "密碼不正確"; return; }
+          sessionStorage.setItem(gk, c + "|"); try { localStorage.setItem(gp, c + "|"); localStorage.setItem("kcg9cls", c); } catch (e) {} onOk("");
+        });
+      };
       return;
     }
     if (role === "teacher" && !KC.demo) {

@@ -115,6 +115,7 @@
   if (window.KCG) KCG.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCD) KCD.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCQ) KCQ.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
+  if (window.KCG9) KCG9.mount("student", { TABS: TABS, V: V, H: H, render: render, done: done, sync: sync, me: function () { return me; } });
   if (window.KCW && KCW.finish) KCW.finish("student", TABS);
   document.addEventListener("change", function (e) { var t = e.target; if ((t.tagName === "SELECT" || (t.tagName === "INPUT" && t.type === "file")) && t.dataset.do && H[t.dataset.do]) { sync(); H[t.dataset.do](t.dataset, t, e); } });
   document.addEventListener("click", function (e) { var t = e.target.closest("[data-do]"); if (t && t.tagName !== "SELECT" && H[t.dataset.do]) { if (t.tagName === "A") e.preventDefault(); sync(); H[t.dataset.do](t.dataset, t, e); } });

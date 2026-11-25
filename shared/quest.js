@@ -35,7 +35,7 @@
   };
   function img(id) { return id ? '<img data-photo="' + E(id) + '" alt="" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--line)">' : '<span class="mut">無照片</span>'; }
   function media(id, kind) { return !id ? "" : kind === "video" ? '<video data-photo="' + E(id) + '" controls playsinline style="max-width:100%;max-height:300px;border-radius:10px"></video>' : img(id); }
-  function bWin(t) { return (t.bStart || t.bEnd) ? "⏱ " + (t.bStart || "開始") + " – " + (t.bEnd || "不限") : "⏱ 不限時"; }
+  function bWin(t) { if (t.endAt) return "⏱ 限時派送，截止 " + new Date(t.endAt).toLocaleTimeString("zh-TW", { hour12: false, hour: "2-digit", minute: "2-digit" }) + '（<span data-cd="' + t.endAt + '"></span>）'; return (t.bStart || t.bEnd) ? "⏱ " + (t.bStart || "開始") + " – " + (t.bEnd || "不限") : "⏱ 不限時"; }
 
   /* ---------- 地理與時間 ---------- */
   function hav(a, b, c, d) { var r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r, h = Math.sin(x / 2) * Math.sin(x / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(y / 2) * Math.sin(y / 2); return 12742000 * Math.asin(Math.sqrt(h)); }
@@ -45,7 +45,7 @@
     var t = KC.today(); if (t < c.date) return "before"; if (t > c.date) return "after";
     return hm() < c.startT ? "before" : hm() > c.endT ? "after" : "open";
   };
-  function inWindow(t) { if (!t.bStart && !t.bEnd) return "open"; var n = hm(); return t.bStart && n < t.bStart ? "before" : t.bEnd && n > t.bEnd ? "after" : "open"; }
+  function inWindow(t) { if (t.endAt) { var nw = Date.now(); return t.startAt && nw < t.startAt ? "before" : nw > t.endAt ? "after" : "open"; } if (!t.bStart && !t.bEnd) return "open"; var n = hm(); return t.bStart && n < t.bStart ? "before" : t.bEnd && n > t.bEnd ? "after" : "open"; }
 
   /* ---------- 計分 ---------- */
   /* 計分（比照 Popworld「城市探索-新加坡」）：
@@ -243,17 +243,19 @@
     var q = KCQ.q(), team = KC.team(me.team);
     if (!me.signup) return '<div class="card"><p class="mut">請先完成報名。</p></div>';
     if (!team) return '<div class="card"><p class="mut">尚未編組，編組完成後即可闖關。</p></div>';
-    var es = KCQ.eventState();
+    var es = KCQ.eventState(), onlyDisp = es !== "open" && q.tasks.some(function (t) { return t.disp && t.active && inWindow(t) === "open" && KCQ.forTeam(t, team); });
+    if (onlyDisp) es = "open";   /* 闖關時段外，仍可作答行政端派送中的限時任務 */
     if (es !== "open") return '<div class="card"><h3>闖關</h3><p>' + (es === "before" ? "活動尚未開始（" + E(q.cfg.date) + " " + E(q.cfg.startT) + " 開放）" : "活動已結束") + "</p></div>";
     if (ui.task) return taskDetail(me, team);
     var sc = KCQ.score(team.id);
     var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　挑戰加分 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分。</p></div>";
     [["A", "關卡列表"], ["B", "⏱ 限時挑戰（行政端核可後加分）"]].forEach(function (g) {
-      var l = activeTasks(g[0]); if (!l.length) return;
+      var l = activeTasks(g[0]).filter(function (t) { return KCQ.forTeam(t, team) && (!onlyDisp || (t.disp && inWindow(t) === "open")); }); if (!l.length) return;
+      if (g[0] === "B") l.sort(function (a, b) { var oa = a.endAt && inWindow(a) === "open" ? 0 : 1, ob = b.endAt && inWindow(b) === "open" ? 0 : 1; return oa - ob || (b.startAt || 0) - (a.startAt || 0) || a.no - b.no; });
       html += '<div class="card"><h3>' + g[1] + "</h3>" + l.map(function (t) {
         var s = getSub(team.id, t.id), st = s ? s.status : "new";
         var b = st === "approved" ? badge("通過 +" + s.pts, "ok") : st === "pending" ? badge("待審核", "wn") : st === "rejected" ? badge("退回，請修正", "no") : st === "doing" ? badge("進行中", "gr") : badge("未開始", "gr");
-        return '<div class="qrow"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + bWin(t) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
+        return '<div class="qrow"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + (t.endAt ? (inWindow(t) === "open" ? "限時派送" : "已截止") : bWin(t)) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
       }).join("") + "</div>";
     });
     return html || '<div class="card"><p class="mut">行政端尚未設定本次活動任務。</p></div>';
@@ -267,7 +269,7 @@
     if (st === "rejected") h += '<p class="b no" style="display:block">已退回：' + E(s.reason || "") + (s.note ? "（" + E(s.note) + "）" : "") + "</p>";
     var win = t.cat === "B" ? inWindow(t) : "open";
     if (win !== "open") return h + "<p>" + (win === "before" ? "⏳ 尚未開放（" + E(t.bStart) + " 開始）" : "⏰ 已截止") + "</p></div>";
-    if (t.cat === "B") h += '<p class="mut">' + E(bWin(t)) + "　完成並經行政端核可可得 <b>+" + calcPts(t) + "</b> 分</p>";
+    if (t.cat === "B") h += '<p class="mut">' + (t.endAt ? bWin(t) : E(bWin(t))) + "　完成並經行政端核可可得 <b>+" + calcPts(t) + "</b> 分</p>";
     var arrived = !t.useGps || s.arrived;
     if (t.hint || t.useGps) h += '<h3 style="margin-top:12px">① 地圖判讀與抵達</h3><p>' + E(t.hint || "前往指定地點") + "</p>" + (t.lat && !s.arrived ? '<p><a href="' + mapLink(t) + '" target="_blank" rel="noopener">🗺️ 在地圖開啟目的地</a></p>' + (t.useGps ? navCard(t) : "") : "");
     if (t.useGps) {
@@ -551,5 +553,9 @@
     var s = document.createElement("script"); s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; s.onload = go;
     s.onerror = function () { var n = $("qmapnote"); if (n) n.textContent = "地圖載入失敗（需要網路），請參考下方座標列表。"; }; document.head.appendChild(s);
   }
+  /* 供 G9 派送／戰況模組使用 */
+  KCQ.forTeam = function (t, team) { var tg = t && t.target; if (!tg || !tg.length || !team) return true; return tg.indexOf(team.cls || String(team.code || team.name || "").split("-")[0]) >= 0; };
+  KCQ.inWindow = inWindow; KCQ.sub = function (team, task) { return getSub(team, task); }; KCQ.taskById = taskById; KCQ.activeTasks = activeTasks; KCQ.calcPts = calcPts; KCQ.hm = hm; KCQ.MODES = MODES;
+  KCQ.openTask = function (id) { stopNav(); ui.task = id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0; };
   w.KCQ = KCQ;
 })(window);

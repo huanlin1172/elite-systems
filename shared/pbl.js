@@ -82,7 +82,8 @@ var KCPBL = (function () {
     return '<div class="card"><h3>📚 專題小隊管理</h3><p class="mut" style="margin-top:0">行政端可編輯；教師端、學生端只能檢視。' + (KC.S.settings.pblAt ? "最後更新：" + E(KC.S.settings.pblAt) : "") + "</p>" +
       '<div class="row"><button class="pri" data-do="pblNew">➕ 新增小隊</button>' +
       '<button class="sec" data-do="pblPick">📥 匯入 Excel</button><input type="file" id="pblFile" accept=".xlsx,.xls,.csv" style="display:none">' +
-      (all.length ? '<button class="sec" data-do="pblCsv">📤 匯出 CSV</button>' : "") + "</div>" +
+      (all.length ? '<button class="sec" data-do="pblCsv">📤 匯出 CSV</button><button class="pri" data-do="pblApply">👥 套用為小隊編組</button>' : "") + "</div>" +
+      '<p class="mut" style="margin-bottom:0">「套用為小隊編組」會依下列組別建立 30 個小隊（編碼 901-1…9F-3）、建立學生帳號並設定小隊長／副小隊長／行政長。' + (KC.S.settings.pblApplied ? "上次套用：" + E(KC.S.settings.pblApplied) + "。" : "<b>尚未套用。</b>") + "修改組員後請再按一次。</p>" +
       '<p class="mut" style="margin-bottom:0">匯入會讀取「Group list 分組名單」工作表，並<b>取代</b>目前全部小隊資料。</p></div>' + listView("admin");
   }
   function readForm() {
@@ -144,8 +145,10 @@ var KCPBL = (function () {
         var warn = gs.filter(function (g) { return !g.advisor; }).map(function (g) { return g.group; });
         ctx.sync();
         if (!confirm("讀到工作表「" + name + "」共 " + gs.length + " 個小隊、" + gs.reduce(function (a, g) { return a + g.members.length; }, 0) + " 位組員。\n" + (list().length ? "將取代目前的 " + list().length + " 組資料，" : "") + "確定匯入？")) return;
-        KC.S.settings.pbl = gs; stamp(); editing = null; ctx.done();
-        alert("✅ 已匯入 " + gs.length + " 個小隊" + (warn.length ? "\n\n⚠️ 以下小隊沒有指導老師姓名，請按「編輯」補上：\n" + warn.join("、") : ""));
+        KC.S.settings.pbl = gs; stamp(); editing = null;
+        var rep = confirm("已讀入 " + gs.length + " 個小隊。\n要同時依這份名單設定小隊編組與學生帳號嗎？（建議按「確定」）") ? applyGroups() : null;
+        ctx.done();
+        alert("✅ 已匯入 " + gs.length + " 個小隊" + (rep ? "\n" + applyMsg(rep) : "") + (warn.length ? "\n\n⚠️ 以下小隊沒有指導老師姓名，請按「編輯」補上：\n" + warn.join("、") : ""));
       }, function (e) { alert(e.message); });
     };
     r.readAsArrayBuffer(file);
@@ -175,6 +178,47 @@ var KCPBL = (function () {
   }
   document.addEventListener("input", function (e) { if (e.target.id === "pblQ") filter(); });
 
+  /* ---------- 依專題小隊設定小隊編組（teams）與學員名單（students） ---------- */
+  var CLS = ["901", "902", "903", "904", "9A", "9B", "9C", "9D", "9E", "9F"];
+  function applyGroups() {
+    var S = KC.S, all = list(), rep = { teams: 0, newTeams: 0, delTeams: 0, matched: 0, created: 0, unassigned: 0, dup: [] };
+    if (!all.length) return null;
+    var byCode = {}, keep = {}, maxN = 0;
+    S.teams.forEach(function (t) { var c = code(t.code || t.name); if (c) byCode[c] = byCode[c] || t; var n = +(String(t.id).match(/^t(\d+)$/) || [0, 0])[1]; if (n > maxN) maxN = n; });
+    var seen = {}, used = {};
+    all.forEach(function (g) {
+      var c = code(g.group); if (!c) return;
+      var t = byCode[c];
+      if (!t) { t = { id: "t" + (++maxN), name: c, code: c, cls: grpKey(g), leader: "", roles: {} }; S.teams.push(t); byCode[c] = t; rep.newTeams++; }
+      t.name = c; t.code = c; t.cls = grpKey(g); t.pbl = g.id; keep[t.id] = 1; rep.teams++;
+      var names = (g.members || []).slice(); ROLES.forEach(function (r) { var p = g[r[0]]; if (p && p.n && !names.some(function (m) { return cnName(m) === cnName(p.n); })) names.push(p.n); });
+      var sidOf = {};
+      names.forEach(function (nm) {
+        var cn = cnName(nm); if (!cn) return;
+        if (seen[cn]) { rep.dup.push(cn + "（" + seen[cn] + "、" + c + "）"); }
+        seen[cn] = c;
+        var st = S.students.filter(function (x) { return !/^LD-/.test(x.id) && !used[x.id] && (x.name === nm || cnName(x.name) === cn); })[0];
+        if (st) { rep.matched++; if (!st.cls) st.cls = grpKey(g); }
+        else { st = { id: "P-" + c + "-" + cn, cls: grpKey(g), name: nm }; S.students.push(st); rep.created++; }
+        used[st.id] = 1; st.team = t.id; if (!st.signup) st.signup = { at: new Date().toISOString(), auto: 1 }; sidOf[cn] = st.id;
+      });
+      var r = {}, pick = function (k, rk) { var p = g[k]; if (p && p.n && sidOf[cnName(p.n)]) r[rk] = sidOf[cnName(p.n)]; };
+      pick("cap", "leader"); pick("vice", "vice"); pick("ao1", "admin");
+      if (r.leader || !(t.leader && /^LD-/.test(t.leader))) t.leader = r.leader || "";
+      if (!r.leader && t.leader) r.leader = t.leader;
+      t.roles = r;
+    });
+    S.students.forEach(function (x) { if (!used[x.id] && !/^LD-/.test(x.id) && x.team) { x.team = ""; rep.unassigned++; } });
+    var before = S.teams.length; S.teams = S.teams.filter(function (t) { return keep[t.id]; }); rep.delTeams = before - S.teams.length;
+    S.students = S.students.filter(function (x) { return !/^LD-/.test(x.id) || keep[x.team]; });
+    S.settings.pblApplied = new Date().toLocaleString("zh-TW", { hour12: false });
+    return rep;
+  }
+  function applyMsg(rep) {
+    return "✅ 已依專題小隊完成編組：" + rep.teams + " 個小隊" + (rep.newTeams ? "（新增 " + rep.newTeams + " 隊）" : "") + (rep.delTeams ? "，移除 " + rep.delTeams + " 個不在名單中的舊小隊" : "") +
+      "\n學員：沿用既有帳號 " + rep.matched + " 人、新建 " + rep.created + " 人" + (rep.unassigned ? "；" + rep.unassigned + " 位不在專題名單中的學生已改為未編組" : "") +
+      (rep.dup.length ? "\n\n⚠️ 以下姓名出現在兩個小隊，已各自建立學生帳號（若其實是同一人，請在專題小隊名單刪除其中一筆後再套用一次）：\n" + rep.dup.join("\n") : "");
+  }
   function mount(role, ctx) {
     var tabs = ctx.TABS, at = 0;
     tabs.forEach(function (t, i) { if (t[0] === "hub") at = i + 1; });
@@ -186,6 +230,10 @@ var KCPBL = (function () {
     });
     if (role !== "admin") return;
     var H = ctx.H;
+    H.pblApply = function () {
+      if (!confirm("依目前的專題小隊名單設定小隊編組？\n‧ 30 個小隊編碼（901-1…9F-3）保留原本的闖關紀錄\n‧ 依姓名沿用既有學生帳號，沒有的會自動建立\n‧ 不在名單中的學生會改為未編組")) return;
+      var rep = applyGroups(); if (!rep) return alert("尚無專題小隊資料"); ctx.done(); alert(applyMsg(rep));
+    };
     H.pblPick = function () { var f = document.getElementById("pblFile"); if (f) f.click(); };
     H.pblNew = function () { editing = "new"; ctx.render(); window.scrollTo(0, 0); };
     H.pblEdit = function (d) { editing = d.id; ctx.render(); window.scrollTo(0, 0); };
@@ -214,5 +262,5 @@ var KCPBL = (function () {
       })));
     };
   }
-  return { mount: mount, enabled: true, _fromRows: fromRows };
+  return { mount: mount, enabled: true, _fromRows: fromRows, apply: applyGroups, list: list, byCode: function (c) { return list().filter(function (g) { return code(g.group) === code(c); })[0]; }, ROLES: ROLES, cn: cnName };
 })();
