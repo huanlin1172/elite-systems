@@ -16,6 +16,7 @@
     var q = S.quest; q.cfg = Object.assign({}, DEF.cfg, q.cfg); if (q.cfg.ver !== 3) { ["ver", "nLevels", "perCP", "wrong", "tMax", "tFull", "tDec"].forEach(function (k) { q.cfg[k] = DEF.cfg[k]; }); if (q.cfg.startT === "11:00" || q.cfg.startT === "09:00") q.cfg.startT = DEF.cfg.startT; if (q.cfg.endT === "17:00" || q.cfg.endT === "20:00") q.cfg.endT = DEF.cfg.endT; }
     /* G9 2026 計分規則（只套用一次，之後行政端仍可在「闖關設定」修改）：每關 30 分×20 關＝600；全部通關 300 分鐘內得時間分 300，之後每分鐘扣 5 分（19:30 歸零）；限時任務每題 50 分 */
     if (window.ACT === "g9" && !q.cfg.rule2026) Object.assign(q.cfg, { rule2026: 1, nLevels: 20, perCP: 30, tMax: 300, tFull: 300, tDec: 5, startT: "13:30", endT: "19:30", bPts: 50, bN: 2 });
+    if (window.ACT === "g9" && !q.cfg.rule2026b) Object.assign(q.cfg, { rule2026b: 1, wrong: 5 });   /* 答錯一次扣 5 分；扣滿一關分數（6 次）即公布答案 */
     q.subs = q.subs || {}; q.pings = q.pings || {}; q.tasks = q.tasks || []; S.scores = S.scores || []; return q;
   };
   function taskById(id) { return KCQ.q().tasks.filter(function (t) { return t.id === id; })[0]; }
@@ -64,9 +65,10 @@
       if (t.cat === "B") { if (s.status === "approved") r.b += s.pts || 0; return; }
       if (t.cat !== "A") return;
       r.wrongN += s.wrong || 0;
+      r.pen += Math.min((s.wrong || 0) * c.wrong, c.perCP);
+      if (s.revealed) r.revealN = (r.revealN || 0) + 1;
       if (s.status === "approved") { r.a += s.pts || 0; r.aDone++; r.last = Math.max(r.last, s.approvedAt || 0); }
     });
-    r.pen = r.wrongN * c.wrong;
     var aAll = activeTasks("A").length;
     if (aAll && r.aDone >= aAll) {
       r.done = true;
@@ -75,6 +77,10 @@
     r.bonus = r.timePts; r.e = 0;
     r.total = r.a + r.timePts - r.pen + r.b; return r;
   };
+  /* 答錯幾次公布答案：扣分扣滿一關分數為止（30 分 ÷ 5 分 ＝ 6 次） */
+  function maxWrong() { var c = KCQ.q().cfg; return Math.max(1, Math.ceil(c.perCP / Math.max(1, c.wrong))); }
+  KCQ.maxWrong = maxWrong;
+  function netPts(s) { return Math.max(0, (s.pts || 0) - Math.min((s.wrong || 0) * KCQ.q().cfg.wrong, KCQ.q().cfg.perCP)); }
   var GTILE = "https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}";
   KCQ.GTILE = GTILE;
   function radiusOf(t) { return t && +t.radius > 0 ? +t.radius : (KCQ.q().cfg.radiusDefault || 120); }
@@ -261,7 +267,7 @@
   }
   function listView(q, team, onlyDisp) {
     var sc = KCQ.score(team.id);
-    var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　挑戰加分 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分。</p></div>";
+    var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　限時任務 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分，同一關答錯 " + maxWrong() + " 次公布答案、該關 0 分。</p></div>";
     var G9 = window.ACT === "g9";
     if (G9) html += '<div class="card"><h3>🗺️ 小隊與關卡即時位置</h3><div id="g9qmapHost"></div><p class="mut" id="g9qnote" style="margin:6px 0 0">正在取得 GPS 位置…</p></div><div class="g9cols">';
     [["A", "關卡列表"], ["B", G9 ? "⏱ 限時挑戰" : "⏱ 限時挑戰（行政端核可後加分）"]].forEach(function (g) {
@@ -269,7 +275,7 @@
       if (g[0] === "B") l.sort(function (a, b) { var oa = a.endAt && inWindow(a) === "open" ? 0 : 1, ob = b.endAt && inWindow(b) === "open" ? 0 : 1; return oa - ob || (b.startAt || 0) - (a.startAt || 0) || a.no - b.no; });
       html += '<div class="card"><h3>' + g[1] + "</h3>" + l.map(function (t) {
         var s = getSub(team.id, t.id), st = s ? s.status : "new";
-        var b = st === "approved" ? badge("通過 +" + s.pts, "ok") : st === "pending" ? badge("待審核", "wn") : st === "rejected" ? badge("退回，請修正", "no") : st === "doing" ? badge("進行中", "gr") : badge("未開始", "gr");
+        var b = st === "approved" ? (s.revealed ? badge("公布答案 +0", "no") : badge("通過 +" + (t.cat === "A" ? netPts(s) : s.pts), "ok")) : st === "pending" ? badge("待審核", "wn") : st === "rejected" ? badge("退回，請修正", "no") : st === "doing" ? badge("進行中", "gr") : badge("未開始", "gr");
         return '<div class="qrow"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + (t.endAt ? (inWindow(t) === "open" ? "限時派送" : "已截止") : bWin(t)) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
       }).join("") + "</div>";
     });
@@ -297,13 +303,14 @@
     h += '<h3 style="margin-top:12px">② 謎題</h3><p style="white-space:pre-wrap">' + E(t.text) + "</p>" + (t.clueImg ? "<p>" + img(t.clueImg) + "</p>" : "") + (t.note ? '<p class="mut" style="white-space:pre-wrap">' + E(t.note) + "</p>" : "");
     if (t.tip) h += T.tip ? '<div class="nt"><b>💡 提示</b>　' + E(t.tip) + (t.tipImg ? "<br>" + img(t.tipImg) : "") + "</div>" : '<div class="row"><button class="sm sec" data-do="qTTip">💡 需要提示</button></div>';
     if (needAns) {
-      var inputs = "";
+      var inputs = ""; ok = ok || T.reveal;
       if (ty === "choice") inputs = optLetters(t).map(function (L) { return '<label style="display:inline-block;margin:4px 10px 4px 0"><input type="checkbox" data-qsel="' + L + '"' + ((d.sel || []).indexOf(L) >= 0 ? " checked" : "") + (ok ? " disabled" : "") + "> " + L + "</label>"; }).join("");
       else if (nparts(t) > 1) { for (var pi = 0; pi < nparts(t); pi++) inputs += '<input data-qin="p' + pi + '" placeholder="第 ' + (pi + 1) + ' 格" value="' + E(d["p" + pi] || "") + '" style="min-width:130px"' + (ok ? " disabled" : "") + ">"; }
       else inputs = '<input data-qin="ans" value="' + E(d.ans || "") + '" style="flex:1;min-width:160px"' + (ok ? " disabled" : "") + ">";
-      h += "<label>你們的答案" + (T.wrong ? "（測試中答錯 " + T.wrong + " 次，不扣分）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs + (ok ? "" : '<button class="pri" data-do="qTAns">核對答案</button>') + "</div>";
-      if (ok) h += "<p>" + badge("答對了！", "ok") + "</p>"; else if (T.msg) h += '<p class="mut">' + E(T.msg) + "</p>";
-      if (t.answer) h += T.show || ok ? "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>" : '<div class="row"><button class="sm sec" data-do="qTShow">👀 顯示正確答案</button></div>';
+      h += "<label>你們的答案" + (T.wrong ? "（測試中答錯 " + T.wrong + " 次，不扣分" + (T.reveal ? "" : "；再錯 " + (maxWrong() - T.wrong) + " 次將公布答案") + "）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs + (ok ? "" : '<button class="pri" data-do="qTAns">核對答案</button>') + "</div>";
+      if (T.ok) h += "<p>" + badge("答對了！", "ok") + "</p>"; else if (T.msg && !T.reveal) h += '<p class="mut">' + E(T.msg) + "</p>";
+      if (T.reveal) h += "<p>" + badge("答錯 " + T.wrong + " 次，已公布答案（正式闖關時本關 0 分）", "no") + "</p>";
+      if (t.answer && (ok || T.reveal)) h += "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>";
     }
     if (ok || !needAns) { if (t.after) h += "<h3>後續故事</h3>" + story(t.after, t); if (t.afterImg) h += img(t.afterImg); }
     if (t.mode !== "matchAuto") h += '<h3 style="margin-top:12px">③ ' + (t.mode === "media" ? "上傳成果" : "拍照") + '</h3><p class="mut">' + E(t.photoTip || "") + "（正式闖關時在這裡拍照上傳；測試模式不送出）</p>";
@@ -315,7 +322,7 @@
     var t = taskById(ui.task); if (!t) { ui.task = null; return studentView(me); }
     var s = getSub(team.id, t.id) || { status: "new", wrong: 0 }, st = s.status, d = ui.draft;
     var h = '<div class="card"><div class="row"><button class="sm sec" data-do="qBack">← 任務清單</button><b>' + t.cat + t.no + "</b> " + badge(MODES[t.mode], "gr") + "</div>";
-    if (st === "approved") return h + (t.item ? "<h3>" + E(t.item) + "</h3>" : "") + '<p>' + badge("已通過 +" + s.pts + " 分", "ok") + "</p>" + (t.answer && t.atype ? "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>" : "") + story(0, t) + (t.after ? '<h3>後續故事</h3>' + story(t.after, t) : "") + (t.afterImg ? img(t.afterImg) : "") + (s.note ? '<p class="mut">老師評語：' + E(s.note) + "</p>" : "") + "</div>";
+    if (st === "approved") return h + (t.item ? "<h3>" + E(t.item) + "</h3>" : "") + '<p>' + (s.revealed ? badge("答錯 " + s.wrong + " 次，已公布答案，本關 0 分", "no") : badge("已通過 +" + (t.cat === "A" ? netPts(s) : s.pts) + " 分" + (t.cat === "A" && s.wrong ? "（" + s.pts + " − 答錯 " + s.wrong + " 次 × " + KCQ.q().cfg.wrong + "）" : ""), "ok")) + "</p>" + (t.answer && t.atype ? "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>" : "") + story(0, t) + (t.after ? '<h3>後續故事</h3>' + story(t.after, t) : "") + (t.afterImg ? img(t.afterImg) : "") + (s.note ? '<p class="mut">老師評語：' + E(s.note) + "</p>" : "") + "</div>";
     if (st === "pending") return h + "<p>" + badge("已送出，等待老師審核", "wn") + '</p><p class="mut">送出內容：' + E(s.answer || "") + "</p>" + (s.photoId ? media(s.photoId, s.kind) : "") + (s.link ? '<p class="mut">連結：' + E(s.link) + "</p>" : "") + "</div>";
     if (st === "rejected") h += '<p class="b no" style="display:block">已退回：' + E(s.reason || "") + (s.note ? "（" + E(s.note) + "）" : "") + "</p>";
     var win = t.cat === "B" ? inWindow(t) : "open";
@@ -339,7 +346,7 @@
       if (ty === "choice") inputs = optLetters(t).map(function (L) { return '<label style="display:inline-block;margin:4px 10px 4px 0"><input type="checkbox" data-qsel="' + L + '"' + ((d.sel || []).indexOf(L) >= 0 ? " checked" : "") + (matched ? " disabled" : "") + "> " + L + "</label>"; }).join("");
       else if (nparts(t) > 1) { for (var pi = 0; pi < nparts(t); pi++) inputs += '<input data-qin="p' + pi + '" placeholder="第 ' + (pi + 1) + ' 格" value="' + E(d["p" + pi] || "") + '" style="min-width:130px"' + (matched ? " disabled" : "") + ">"; }
       else inputs = '<input data-qin="ans" value="' + E(d.ans || "") + '" style="flex:1;min-width:160px"' + (matched ? " disabled" : "") + ">";
-      h += "<label>你們的答案" + (s.wrong ? "（已答錯 " + s.wrong + " 次）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs +
+      h += "<label>你們的答案" + (s.wrong ? "（已答錯 " + s.wrong + " 次" + (t.cat === "A" ? "，再錯 " + (maxWrong() - s.wrong) + " 次將公布答案，本關 0 分" : "") + "）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs +
         (t.mode !== "text" && !matched ? '<button class="pri" data-do="qAnswer">核對答案</button>' : "") + "</div>" + (matched ? "<p>" + badge("答對了！", "ok") + "</p>" : "");
       if (ui.msg && t.mode !== "text") h += '<p class="mut">' + E(ui.msg) + "</p>";
     }
@@ -364,14 +371,13 @@
     qTOpen: function (d, el, c) { ui.test = { id: d.id }; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
     qTBack: function (d, el, c) { ui.test = {}; ui.draft = {}; c.render(); },
     qTTip: function (d, el, c) { ui.test.tip = 1; c.render(); },
-    qTShow: function (d, el, c) { ui.test.show = 1; c.render(); },
     qTAns: function (d, el, c) {
       var T = ui.test, t = taskById(T.id), ty = atypeOf(t), vals;
       if (ty === "choice") vals = ui.draft.sel || [];
       else if (nparts(t) > 1) { vals = []; for (var i = 0; i < nparts(t); i++) vals.push(String(ui.draft["p" + i] || "").trim()); }
       else vals = [String(ui.draft.ans || "").trim()];
       if (!vals.length || vals.some(function (x) { return !x; })) { T.msg = "請先把答案填完整"; return c.render(); }
-      if (checkAns(t, vals)) { T.ok = 1; T.msg = ""; } else { T.wrong = (T.wrong || 0) + 1; T.msg = "答案不對（測試模式不扣分）"; }
+      if (checkAns(t, vals)) { T.ok = 1; T.msg = ""; } else { T.wrong = (T.wrong || 0) + 1; if (T.wrong >= maxWrong()) T.reveal = 1; T.msg = "答案不對（測試模式不扣分；再錯 " + (maxWrong() - T.wrong) + " 次將公布答案）"; }
       c.render();
     },
     qOpen: function (d, el, c) { stopNav(); ui.task = d.id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0; c.render(); },
@@ -398,7 +404,14 @@
       if (ty === "choice") { vals = ui.draft.sel || []; shown = vals.slice().sort().join("、"); if (!vals.length) { ui.msg = "請先選擇答案"; return c.render(); } }
       else if (nparts(t) > 1) { vals = []; for (var i = 0; i < nparts(t); i++) vals.push(String(ui.draft["p" + i] || "").trim()); if (vals.some(function (x) { return !x; })) { ui.msg = "每一格都要填寫"; return c.render(); } shown = vals.join(" / "); }
       else { vals = [String(ui.draft.ans || "").trim()]; shown = vals[0]; if (!shown) { ui.msg = "請先輸入答案"; return c.render(); } }
-      if (!checkAns(t, vals)) { s.wrong = (s.wrong || 0) + 1; ui.msg = "答案不對，再想想（已錯 " + s.wrong + " 次，每次扣 " + KCQ.q().cfg.wrong + " 分）"; return c.done(); }
+      if (!checkAns(t, vals)) {
+        s.wrong = (s.wrong || 0) + 1;
+        if (t.cat === "A" && s.wrong >= maxWrong()) {   /* 扣滿本關分數：公布答案、本關 0 分，可繼續下一關 */
+          s.revealed = true; s.answerOk = true; s.answer = shown; s.status = "approved"; s.pts = calcPts(t); s.approvedAt = Date.now(); s.at = stamp(); ui.msg = "";
+          return c.done();
+        }
+        ui.msg = "答案不對，再想想（已錯 " + s.wrong + " 次，每次扣 " + KCQ.q().cfg.wrong + " 分" + (t.cat === "A" ? "；再錯 " + (maxWrong() - s.wrong) + " 次將公布答案，本關 0 分" : "") + "）"; return c.done();
+      }
       s.answerOk = true; s.answer = shown; ui.msg = "";
       if (t.mode === "matchAuto") { s.status = "approved"; s.pts = calcPts(t, s, false); s.approvedAt = Date.now(); s.at = stamp(); }
       c.done();
@@ -468,7 +481,7 @@
       '<div class="card"><h3>計分規則（比照 Popworld 城市探索）</h3><div class="row">' + num("c_nl", "本次關數", c.nLevels) + num("c_pc", "每關得分", c.perCP) + num("c_w", "答錯一次扣", c.wrong) + num("c_tm", "時間分滿分", c.tMax) + num("c_tf", "滿分時限（分鐘）", c.tFull) + num("c_td", "超時每分鐘扣", c.tDec) + (window.ACT === "g9" ? num("c_bp", "限時任務每題", c.bPts || 50) + num("c_bn", "限時任務題數", c.bN || 0) : "") + "</div>" +
       (window.ACT === "g9" ? '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">🧪 學生端關卡測試</h4><label style="margin:0"><input type="checkbox" id="c_test"' + (c.testOn !== false ? " checked" : "") + '> 開放學生端「關卡測試」（不需定位就能看到每一關的題目並核對答案，不計分）</label><p class="mut">正式活動當天請取消勾選並儲存，否則小隊可以提前看到所有題目。</p></div>' : "") +
       '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">📍 題目觸發半徑</h4><div class="row">' + num("c_rd", "預設觸發半徑（公尺）", c.radiusDefault) + '<button class="sec" data-do="qRadiusAll">套用到全部題目（覆蓋個別設定）</button></div><p class="mut">學生走進目標點此半徑內（再加上手機定位誤差，最多 +50 公尺）即可打卡並看到題目。個別題目可在「編輯題目」中自訂，填 0 表示使用預設值。</p></div>' +
-      '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關" + (c.bN ? "；另設限時任務 " + (c.bPts || 50) + " 分／題，共 " + c.bN + " 題 " + (c.bPts || 50) * c.bN + " 分" : "") + "。滿分 " + (c.tMax + c.perCP * c.nLevels + (c.bN ? (c.bPts || 50) * c.bN : 0)) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + (c.bN ? " ＋ 限時任務 " + (c.bPts || 50) * c.bN : "") + "）。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
+      '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關" + (c.bN ? "；另設限時任務 " + (c.bPts || 50) + " 分／題，共 " + c.bN + " 題 " + (c.bPts || 50) * c.bN + " 分" : "") + "。滿分 " + (c.tMax + c.perCP * c.nLevels + (c.bN ? (c.bPts || 50) * c.bN : 0)) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + (c.bN ? " ＋ 限時任務 " + (c.bPts || 50) * c.bN : "") + "）。答錯一次扣 " + c.wrong + " 分，每關最多扣到 0 分；同一關答錯 " + maxWrong() + " 次會自動公布答案，該關 0 分，小隊可繼續下一關。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
       '<div class="card"><h3>重新開始</h3><p class="mut">清除所有小隊的闖關紀錄與定位，題庫與設定保留。測試後正式開跑前使用。</p><div class="row"><input id="c_rs" placeholder="輸入 RESET 確認" style="width:150px"><button class="dng" data-do="qReset">清除闖關紀錄</button></div></div>' +
       '<div class="card"><h3>地圖中心</h3><div class="row"><select id="c_pre" data-do="qPre">' + PRESETS.map(function (p, i) { return '<option value="' + i + '">' + p[0] + "</option>"; }).join("") + '</select><label style="margin:0">緯度 <input id="c_lat" value="' + c.center.lat + '" style="width:110px"></label><label style="margin:0">經度 <input id="c_lng" value="' + c.center.lng + '" style="width:110px"></label></div></div>' +
       '<div class="row"><button class="pri" data-do="qSaveCfg">儲存活動設定</button></div>';
