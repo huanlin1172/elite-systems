@@ -89,7 +89,7 @@ var KCG9 = (function () {
   /* ================= 戰況公告 ================= */
   function battles() { return KC.S.notices.filter(function (n) { return n.kind === "battle"; }).slice().reverse(); }
   function battleCard(n, hi) {
-    return '<div class="card"><div class="mut">📣 ' + E(n.at) + "</div>" + (n.msg ? '<p style="white-space:pre-wrap;font-size:16px;margin:6px 0">' + E(n.msg) + "</p>" : "") +
+    return '<div class="card g9dark"><div class="mut">📣 ' + E(n.at) + "</div>" + (n.msg ? '<p style="white-space:pre-wrap;font-size:16px;margin:6px 0">' + E(n.msg) + "</p>" : "") +
       (n.rank && n.rank.length ? rankTable(n.rank, hi) + (n.total && n.total > n.rank.length ? '<p class="mut" style="margin:4px 0 0">（公布前 ' + n.rank.length + " 名，共 " + n.total + " 隊）</p>" : "") : "") +
       (ROLE === "admin" ? '<div class="row"><button class="sm dng" data-do="g9bDel" data-id="' + n.id + '">刪除</button></div>' : "") + "</div>";
   }
@@ -99,13 +99,13 @@ var KCG9 = (function () {
       '<label>公告內容</label><textarea id="bt_msg" placeholder="例：第一階段戰況出爐！目前 901-2 暫居第一，各隊加油！下一個限時任務 15:30 派送。"></textarea>' +
       '<div class="row"><label style="margin:0">附上排名 <select id="bt_n"><option value="3">前 3 名</option><option value="5" selected>前 5 名</option><option value="10">前 10 名</option><option value="0">全部小隊</option><option value="-1">不附排名</option></select></label>' +
       '<button class="pri" data-do="g9bSend">📣 派送戰況公告</button></div></div>' +
-      '<div class="card"><h3>🏆 即時戰況（僅行政端與導師可見）</h3><div class="row"><select data-do="g9rk"><option value="">全部 30 隊</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (f === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" +
+      '<div class="card g9dark"><h3>🏆 即時戰況（僅行政端與導師可見）</h3><div class="row"><select data-do="g9rk"><option value="">全部 30 隊</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (f === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" +
       rankTable(rk.filter(function (r) { return !f || r.cls === f; }), "", { theme: true, full: true }) + "</div>" +
       "<h3>已派送的戰況公告</h3>" + (battles().map(function (n) { return battleCard(n); }).join("") || '<div class="card"><p class="mut">尚未派送</p></div>');
   }
   function battleRecv() {
     var hi = ROLE === "student" ? (myTeam() || {}).id : myCls(), bs = battles();
-    var h = ROLE === "teacher" ? '<div class="card"><h3>🏆 即時戰況（您的班級以綠色標示）</h3>' + rankTable(ranking(), hi, { theme: true }) + "</div><h3>行政端派送的戰況公告</h3>" : "<h3>📣 闖關戰況公告</h3>";
+    var h = ROLE === "teacher" ? '<div class="card g9dark"><h3>🏆 即時戰況（您的班級以綠色標示）</h3>' + rankTable(ranking(), hi, { theme: true }) + "</div><h3>行政端派送的戰況公告</h3>" : "<h3>📣 闖關戰況公告</h3>";
     return h + (bs.map(function (n) { return battleCard(n, hi); }).join("") || '<div class="card"><p class="mut">行政端尚未派送戰況公告。</p></div>');
   }
 
@@ -138,14 +138,14 @@ var KCG9 = (function () {
     if (ROLE === "teacher" && !cl) return '<div class="card"><p class="mut">請重新登入並選擇您的導師班級。</p></div>';
     if (!list.some(function (t) { return t.id === ui.chatTeam; })) ui.chatTeam = (list.filter(function (t) { return unread(t.id); })[0] || list[0] || {}).id || "";
     var t = KC.team(ui.chatTeam);
-    return (ROLE === "teacher" ? '<div class="card"><h3>📢 傳給全班 ' + list.length + " 個小隊</h3>" + '<div class="row" style="align-items:flex-end"><textarea id="g9all" placeholder="例：請各隊 16:00 前回到集合點" style="flex:1;min-height:56px;margin:0"></textarea><button class="pri" data-do="g9sendAll">全部傳送</button></div></div>' : "") +
-      '<div class="card"><h3>💬 小隊聯繫</h3>' + (ROLE === "admin" ? '<div class="row"><select data-do="g9rk"><option value="">全部班級</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (ui.rkCls === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" : "") +
+    return (ROLE === "teacher" ? '<div class="card g9dark"><h3>📢 傳給全班 ' + list.length + " 個小隊</h3>" + '<div class="row" style="align-items:flex-end"><textarea id="g9all" placeholder="例：請各隊 16:00 前回到集合點" style="flex:1;min-height:56px;margin:0"></textarea><button class="pri" data-do="g9sendAll">全部傳送</button></div></div>' : "") +
+      '<div class="card g9dark"><h3>💬 小隊聯繫</h3>' + (ROLE === "admin" ? '<div class="row"><select data-do="g9rk"><option value="">全部班級</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (ui.rkCls === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" : "") +
       '<div class="row">' + list.map(teamBtn).join("") + "</div>" +
       (t ? '<h4 style="margin:10px 0 6px">' + E(code(t)) + "　" + E(theme(t)) + "</h4>" + thread(t.id) : '<p class="mut">尚無小隊，請行政端先在「📚 專題小隊」按「套用為小隊編組」。</p>') + "</div>";
   }
   function chatStudent() {
     var t = myTeam(); if (!t) return '<div class="card"><p class="mut">尚未編入小隊，無法聯繫。</p></div>';
-    return '<div class="card"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端。</p>" + thread(t.id) + "</div>";
+    return '<div class="card g9dark"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端。</p>" + thread(t.id) + "</div>";
   }
   function post(tid, text, extra) { KC.S.chat = KC.S.chat || []; var m = me(); KC.S.chat.push(Object.assign({ id: "c" + KC.uid(), kind: "chat", team: tid, from: ROLE, by: ROLE === "student" ? (m && m.name) || "" : ROLE === "teacher" ? myCls() + " 導師" : "行政", text: text, at: stamp(), t: Date.now() }, extra || {})); }
   /* 圖片與語音：檔案存在 photos 集合（與闖關照片相同），訊息只記錄編號 */
@@ -208,6 +208,24 @@ var KCG9 = (function () {
     return h;
   }
 
+  /* ================= 公告／廣播（合併） ================= */
+  function noticeView() {
+    var tm = myTeam(), cl = myCls();
+    var ns = KC.S.notices.filter(function (n) {
+      if (ROLE === "admin" || !n.team) return true;
+      if (ROLE === "student") return tm && n.team === tm.id;
+      var t = KC.team(n.team); return t && clsOf(t) === cl;
+    }).slice().reverse();
+    var form = ROLE === "admin" ? '<div class="card g9dark"><h3>📢 發布公告／廣播</h3><p class="mut" style="margin-top:0">選「全體」時，導師與 30 隊小隊長都看得到；選單一小隊時，只有該隊與其導師看得到。</p>' +
+      '<div class="row"><select id="m_to"><option value="">全體（導師＋全部小隊）</option>' + CLS.map(function (c) { var l = teams(c); return l.length ? '<optgroup label="' + c + ' 班">' + l.map(function (t) { return '<option value="' + t.id + '">' + E(code(t)) + "</option>"; }).join("") + "</optgroup>" : ""; }).join("") + "</select></div>" +
+      '<textarea id="m_tx" placeholder="公告內容"></textarea><div class="row"><button class="pri" data-do="qSend">發布</button></div></div>' : "";
+    return form + '<div class="card g9dark"><h3>' + (ROLE === "admin" ? "公告紀錄" : "📢 公告") + "</h3>" + (ns.map(function (n) {
+      var t = KC.team(n.team);
+      return '<div class="nt"><div class="mut">' + E(n.at) + (n.kind === "battle" ? "　📣 戰況公告" : "") + "　→ " + (t ? E(code(t)) : "全體") +
+        (ROLE === "admin" ? ' <button class="sm dng" data-do="delNote" data-id="' + E(n.id) + '">刪除</button>' : "") + '</div><div style="white-space:pre-wrap">' + E(n.text) + "</div></div>";
+    }).join("") || '<p class="mut">尚無公告</p>') + "</div>";
+  }
+
   /* ================= 通知（跳出提醒） ================= */
   var toastBox = null, inited = false;
   function sk() { var m = me(); return "kcg9seen:" + ROLE + ":" + (ROLE === "student" ? (m && m.id) || "" : ROLE === "teacher" ? myCls() : "a"); }
@@ -257,17 +275,21 @@ var KCG9 = (function () {
   (function () {
     var st = document.createElement("style");
     st.textContent = "#g9toast{position:fixed;top:8px;left:8px;right:8px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}" +
-      ".g9t{pointer-events:auto;display:flex;gap:8px;align-items:center;max-width:560px;width:100%;background:#fff;border:2px solid var(--ac);border-radius:14px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:14px;animation:g9in .25s}" +
+      ".g9t{pointer-events:auto;display:flex;gap:8px;align-items:center;max-width:560px;width:100%;background:#111;color:#f2f2f2;border:2px solid #f0c95a;border-radius:14px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.35);font-size:14px;animation:g9in .25s}" +
       "@keyframes g9in{from{transform:translateY(-20px);opacity:0}}" +
-      ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:rgba(0,0,0,.025);border-radius:12px;margin-bottom:8px}" +
+      ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:#000;border-radius:12px;margin-bottom:8px}" +
       "body button.pri.sm,body .g9t button.pri{color:#fff}" +
       "nav.tabs{flex-wrap:wrap;overflow-x:visible;row-gap:6px}nav.tabs button{flex:0 0 auto}" +
-      ".g9m{max-width:85%;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px;align-self:flex-start}.g9m.me{align-self:flex-end;background:var(--okb)}";
+      ".g9m{max-width:85%;background:#2b2b2b;color:#f2f2f2;border:1px solid #3a3a3a;border-radius:12px;padding:6px 10px;align-self:flex-start}.g9m.me{align-self:flex-end;background:#1d4a37;border-color:#2c6b51}.g9m .mut{color:#a9b4c2!important}.g9m a{color:#8cc8ff}" +
+      ".g9t button.sec{background:#2b2b2b!important;color:#fff!important;border-color:#555!important}" +
+      "body .card.g9dark,body .g9dark{background:#111!important;color:#eee;border-color:#222!important}body .g9dark h3,body .g9dark b{color:#fff}body .g9dark .mut{color:#a9b4c2!important}" +
+      "body .g9dark table th{color:#cfd8e3;background:#1b1b1b}body .g9dark table td,body .g9dark table th{border-color:#2e2e2e!important}body .g9dark tr[style*=okb]{background:#1d4a37!important}" +
+      "body .g9dark select,body .g9dark textarea,body .g9dark input{background:#1e1e1e;color:#fff;border-color:#444}body .g9dark .nt{border-color:#2e2e2e}body .g9dark button.sec{background:#2b2b2b!important;color:#fff!important;border-color:#555!important}body .g9dark button.dng{background:#2a1515!important;color:#ff9b9b!important;border-color:#7a3333!important}body .g9dark .nt+.nt{border-top:1px solid #2e2e2e}";
     document.head.appendChild(st);
   })();
 
   /* ================= 掛載 ================= */
-  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team"] };
+  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team"] };
   function mount(role, ctx) {
     ROLE = role; CTX = ctx;
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
@@ -277,7 +299,9 @@ var KCG9 = (function () {
     if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "💬 小隊聯繫"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
     if (role === "student") { after("quest", ["g9battle", "📣 闖關戰況"]); after("g9battle", ["g9chat", "💬 聯絡老師"]); V.g9battle = battleRecv; }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
-    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
+    V.notice = noticeView;
+    T.forEach(function (t) { if (t[0] === "notice") t[1] = role === "admin" ? "📢 公告廣播" : "📢 公告"; });
+    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); var hn = root.querySelector("#h_note"); if (hn) hn.classList.add("g9dark"); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
 
     H.g9pick = function (d) { ui.chatTeam = d.team; ctx.render(); };
     H.g9goChat = function (d) { ui.chatTeam = d.team; H.tab({ t: "g9chat" }); };
@@ -312,7 +336,7 @@ var KCG9 = (function () {
       var msg = ($("bt_msg").value || "").trim(), n = +$("bt_n").value, rkAll = ranking(), rows = n < 0 ? [] : n === 0 ? rkAll : rkAll.slice(0, n);
       if (!msg && !rows.length) return alert("請輸入公告內容或附上排名");
       if (!confirm("派送戰況公告給所有導師與學生？")) return;
-      var text = "【闖關戰況】" + (msg ? msg : "") + (rows.length ? "\n" + rows.map(function (r) { return (r.rank <= 3 ? medal(r.rank) : r.rank + ".") + " " + r.code + "　" + r.total + " 分（通過 " + r.aDone + " 關）"; }).join("\n") : "");
+      var text = "【闖關戰況】" + (msg ? msg : "") + (rows.length ? "\n" + rows.map(function (r) { return (r.rank <= 3 && (r.total || r.aDone) ? medal(r.rank) : r.rank + ".") + " " + r.code + "　" + r.total + " 分（通過 " + r.aDone + " 關）"; }).join("\n") : "");
       KC.S.notices.push({ id: "b" + KC.uid(), kind: "battle", text: text, msg: msg, rank: rows, total: rkAll.length, team: "", at: stamp(), t: Date.now() });
       ctx.done();
     };
