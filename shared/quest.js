@@ -420,6 +420,8 @@
     var h = '<div class="card"><div class="row"><div class="seg">' + ["A", "B"].map(function (x) { return '<button class="' + (ui.filter === x ? "on s2" : "") + '" data-do="qFilter" data-v="' + x + '">' + (x === "A" ? "A 關卡" : "B 限時挑戰") + "</button>"; }).join("") + '</div><button class="pri" data-do="qNewTask">＋ 新增題目</button>' +
       '<button class="sec" data-do="qFirstN">僅啟用前 ' + c0.nLevels + ' 題（依題號）</button>' + (window.KCQ_BANK ? '<button class="sec" data-do="qBank">匯入試算表題庫（' + window.KCQ_BANK.length + ' 題）</button>' : "")  + "</div></div>";
     if (e) h += editor(e);
+    if (ui.filter === "A") h += '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">🗺️ 關卡地圖（' + list.filter(function (t) { return t.active && t.useGps; }).length + ' 關啟用）</h3><div class="seg">' + [["m", "地圖"], ["y", "衛星"]].map(function (x) { return '<button class="' + (BM.ly === x[0] ? "on s2" : "") + '" data-do="qbmLy" data-v="' + x[0] + '">' + x[1] + "</button>"; }).join("") + '</div><button class="sec sm" data-do="qbmFit">顯示全部關卡</button><label style="margin:0"><input type="checkbox" data-do="qbmOff"' + (BM.off ? " checked" : "") + '> 顯示停用關卡</label></div>' +
+      '<div id="qbmHost" style="margin-top:8px"></div><p class="mut" id="qbmNote">紅點＝啟用關卡，黃色圓圈＝觸發半徑；灰色虛線＝停用關卡。點關卡可看座標、半徑並直接編輯。' + (e ? "<b>編輯中：在地圖上點一下，就會把該位置填入「緯度／經度」（藍色圈＝目前填的位置與半徑）。</b>" : "") + "</p></div>";
     h += '<div class="card"><h3>' + (ui.filter === "B" ? "限時挑戰（" : "關卡題庫（") + list.length + "）</h3><div class=\"scroll\"><table><tr><th>題號</th><th>內容</th><th>模式</th><th>座標</th><th>啟用</th><th></th></tr>" +
       (list.map(function (t) {
         return "<tr><td>" + t.cat + t.no + "</td><td>" + E((t.item || t.place ? (t.item || t.place) + "：" : "") + t.text.slice(0, 24)) + (t.approx ? " " + badge("座標待確認", "wn") : "") + "<span class=\"mut\"> [" + ({ text: "單一答案", parts: "依序多格", set: "多格不計序", choice: "選擇題" }[t.atype || "text"]) + "]</span>" + "</td><td>" + MODES[t.mode] + "</td><td class=\"mut\">" + (t.cat === "B" ? bWin(t) + "｜+" + calcPts(t) + "　" : "") + (t.useGps ? t.lat + ", " + t.lng + " ±" + radiusOf(t) + "m" + (+t.radius > 0 ? "" : "(預設)") : "—") + '</td><td><input type="checkbox" data-do="qActive" data-id="' + t.id + '"' + (t.active ? " checked" : "") + '></td><td><button class="sm sec" data-do="qEdit" data-id="' + t.id + '">編輯</button> <button class="sm dng" data-do="qDel" data-id="' + t.id + '">刪</button></td></tr>';
@@ -546,6 +548,7 @@
     [].forEach.call(root.querySelectorAll("img[data-photo],video[data-photo]"), function (im) { KCQ.getPhoto(im.dataset.photo).then(function (d) { if (d) im.src = d; }); });
     if (nav.on) { if ($("qnav")) updateNav(); else stopNav(); }
     if ($("qmap")) initMap();
+    if ($("qbmHost")) bankMap();
     if (w.KCL && KCL.post) KCL.post(root);
   };
   function initMap() {
@@ -561,6 +564,62 @@
     var s = document.createElement("script"); s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; s.onload = go;
     s.onerror = function () { var n = $("qmapnote"); if (n) n.textContent = "地圖載入失敗（需要網路），請參考下方座標列表。"; }; document.head.appendChild(s);
   }
+  /* 行政端「任務題庫」關卡地圖（Google 地圖底圖） */
+  var BM = { node: null, map: null, lay: null, tile: null, ly: "m", off: false, fitted: false, loading: false };
+  function loadL(cb, fail) {
+    if (w.L) return cb();
+    if (!document.querySelector('link[href*="leaflet.css"]')) { var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(css); }
+    var s = document.createElement("script"); s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; s.onload = cb; s.onerror = fail; document.head.appendChild(s);
+  }
+  function bmTile() {
+    if (BM.tile) BM.map.removeLayer(BM.tile);
+    BM.tile = w.L.tileLayer("https://mt{s}.google.com/vt/lyrs=" + BM.ly + "&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}", { subdomains: "0123", maxZoom: 20, attribution: "地圖資料 ©Google" }).addTo(BM.map);
+  }
+  function tCode(t) { return t.code || t.cat + t.no; }
+  function bmDraw() {
+    var L = w.L, q = KCQ.q(), pts = []; BM.lay.clearLayers();
+    q.tasks.filter(function (t) { return t.cat === "A" && t.useGps && t.lat && t.lng && (t.active || BM.off); }).sort(function (a, b) { return a.no - b.no; }).forEach(function (t) {
+      var on = t.active, r = radiusOf(t), col = on ? "#e53935" : "#9e9e9e";
+      L.circle([t.lat, t.lng], { radius: r, color: on ? "#f9a825" : "#9e9e9e", weight: 2, dashArray: on ? null : "5 5", fillColor: on ? "#ffd54a" : "#bdbdbd", fillOpacity: on ? .25 : .1 }).addTo(BM.lay);
+      L.circleMarker([t.lat, t.lng], { radius: 8, color: "#fff", weight: 2, fillColor: col, fillOpacity: 1 }).addTo(BM.lay)
+        .bindTooltip(E(tCode(t)), { permanent: true, direction: "top", offset: [0, -8], className: "qbmTip" })
+        .bindPopup("<b>" + E(tCode(t)) + "　" + E(t.place || t.item || "") + "</b><br>" + t.lat + ", " + t.lng + "<br>觸發半徑 " + r + " 公尺" + (+t.radius > 0 ? "" : "（預設）") + (on ? "" : "<br>（停用中）") +
+          '<br><a href="' + mapLink(t) + '" target="_blank" rel="noopener">在 Google 地圖開啟</a>　<button class="sm sec" data-do="qEdit" data-id="' + t.id + '">編輯</button>');
+      pts.push([t.lat, t.lng]);
+    });
+    var e = ui.edit;
+    if (e && e.cat === "A") {
+      var la = parseFloat(($("qbmLat") || {}).value), ln = parseFloat(($("qbmLng") || {}).value), ri = +(($("qbmRad") || {}).value);
+      la = isNaN(la) ? e.lat : la; ln = isNaN(ln) ? e.lng : ln; ri = ri > 0 ? ri : (+e.radius > 0 ? +e.radius : (q.cfg.radiusDefault || 120));
+      if (la && ln) { L.circle([la, ln], { radius: ri, color: "#1a73e8", weight: 2, fillOpacity: .15 }).addTo(BM.lay); L.circleMarker([la, ln], { radius: 9, color: "#fff", weight: 3, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(BM.lay).bindTooltip("編輯中", { permanent: true, direction: "bottom", offset: [0, 8], className: "qbmTip" }); }
+    }
+    if (!BM.fitted && pts.length) { BM.fitted = true; try { BM.map.fitBounds(pts, { padding: [30, 30], maxZoom: 17 }); } catch (x) {} }
+    return pts;
+  }
+  function bankMap() {
+    var host = $("qbmHost"); if (!host) return;
+    if (!BM.node) { BM.node = document.createElement("div"); BM.node.style.cssText = "height:440px;border-radius:12px;border:1px solid var(--line);background:#e8eef3"; }
+    if (BM.node.parentNode !== host) host.appendChild(BM.node);
+    if (!document.getElementById("qbmCss")) { var st = document.createElement("style"); st.id = "qbmCss"; st.textContent = ".qbmTip{background:#fff;color:#c62828;border:1px solid #e53935;font-weight:700;padding:0 4px;font-size:12px;box-shadow:none}.qbmTip:before{display:none}.leaflet-popup-content{color:#222}"; document.head.appendChild(st); }
+    /* 編輯欄位改動時，地圖上的藍圈跟著更新 */
+    [].forEach.call(document.querySelectorAll('[data-qe="lat"],[data-qe="lng"],[data-qe="radius"]'), function (el) { el.id = { lat: "qbmLat", lng: "qbmLng", radius: "qbmRad" }[el.dataset.qe]; if (!el._bm) { el._bm = 1; el.addEventListener("input", function () { if (BM.map) bmDraw(); }); } });
+    loadL(function () {
+      if (!BM.map) {
+        var c = KCQ.q().cfg.center || { lat: 1.2868, lng: 103.8545 };
+        BM.map = w.L.map(BM.node).setView([c.lat, c.lng], 15); bmTile(); BM.lay = w.L.layerGroup().addTo(BM.map);
+        BM.map.on("click", function (ev) {
+          var a = $("qbmLat"), b = $("qbmLng"); if (!ui.edit || !a || !b) return;
+          a.value = ev.latlng.lat.toFixed(6); b.value = ev.latlng.lng.toFixed(6); bmDraw();
+        });
+      }
+      setTimeout(function () { BM.map.invalidateSize(); bmDraw(); }, 0);
+    }, function () { var n = $("qbmNote"); if (n) n.textContent = "地圖載入失敗（需要網路），請稍後重新整理；座標仍可在下方列表查看。"; });
+  }
+  Object.assign(adminH, {
+    qbmLy: function (d, el, c) { BM.ly = d.v; if (BM.map) bmTile(); c.render(); },
+    qbmFit: function () { if (!BM.map) return; var p = bmDraw(); if (p.length) BM.map.fitBounds(p, { padding: [30, 30], maxZoom: 17 }); },
+    qbmOff: function (d, el, c) { BM.off = el.checked; if (BM.map) bmDraw(); }
+  });
   /* 供 G9 派送／戰況模組使用 */
   KCQ.forTeam = function (t, team) { var tg = t && t.target; if (!tg || !tg.length || !team) return true; return tg.indexOf(team.cls || String(team.code || team.name || "").split("-")[0]) >= 0; };
   KCQ.inWindow = inWindow; KCQ.sub = function (team, task) { return getSub(team, task); }; KCQ.taskById = taskById; KCQ.activeTasks = activeTasks; KCQ.calcPts = calcPts; KCQ.hm = hm; KCQ.MODES = MODES;
