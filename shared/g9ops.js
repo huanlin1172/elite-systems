@@ -53,12 +53,12 @@ var KCG9 = (function () {
   function counts(t, list) { var c = { up: 0, ok: 0, n: list.length }; list.forEach(function (tm) { var s = KCQ.sub(tm.id, t.id); if (s && (s.status === "pending" || s.status === "approved" || s.status === "rejected")) c.up++; if (s && s.status === "approved") c.ok++; }); return c; }
   function dispView() {
     var ds = disp(), lv = ds.filter(live), old = ds.filter(function (t) { return !live(t); });
-    var form = '<div class="card"><h3>⏱ 派送限時任務</h3><p class="mut" style="margin-top:0">送出後，指定小隊的學生端會立即跳出通知並開始倒數；導師端同步收到。學生在「🗺️ 闖關」作答並上傳照片，由「📝 闖關審核」核可加分。</p>' +
+    var form = '<div class="card"><h3>⏱ 派送限時任務</h3>' + (KCQ.q().cfg.bN ? '<p style="margin:0 0 6px"><b>計分規則：每題 ' + (KCQ.q().cfg.bPts || 50) + " 分，共 " + KCQ.q().cfg.bN + " 題。目前已派送 " + ds.length + " 題" + (ds.length >= KCQ.q().cfg.bN ? "（已達規劃題數）" : "") + "。</b></p>" : "") + '<p class="mut" style="margin-top:0">送出後，指定小隊的學生端會立即跳出通知並開始倒數；導師端同步收到。學生在「🗺️ 闖關」作答並上傳照片，由「📝 闖關審核」核可加分。</p>' +
       '<label>任務題目</label><textarea id="dp_text" placeholder="例：在 10 分鐘內找到一位穿著傳統服飾的人，全隊與他合照（請先徵得同意）"></textarea>' +
       '<label>拍照／作答說明（選填）</label><input id="dp_tip" placeholder="例：全員入鏡，畫面中要看得到店家招牌" style="width:100%">' +
       '<div class="pbl-grid"><div><label>作答方式</label><select id="dp_mode" style="width:100%"><option value="photo">📷 拍照上傳</option><option value="text">✍️ 文字作答＋拍照上傳</option><option value="media">🎬 照片或影片上傳</option></select></div>' +
       '<div><label>答題時間（分鐘）</label><input id="dp_min" type="number" min="1" max="600" value="10" style="width:100%"></div>' +
-      '<div><label>核可後加分</label><input id="dp_pts" type="number" value="10" style="width:100%"></div></div>' +
+      '<div><label>核可後加分</label><input id="dp_pts" type="number" value="' + (KCQ.q().cfg.bPts || 50) + '" style="width:100%"></div></div>' +
       '<label>題目照片（選填）</label><input type="file" accept="image/*" id="dp_img">' + (ui.dImg ? '<p><img src="' + ui.dImg + '" alt="" style="max-width:220px;border-radius:10px"> <button class="sm sec" data-do="g9dImgClr">移除</button></p>' : "") +
       '<label>派送對象</label><div class="row"><label style="margin:0"><input type="checkbox" id="dp_all" checked> 全部 30 隊</label>' + CLS.map(function (c) { return '<label style="margin:0"><input type="checkbox" data-dpc="' + c + '"> ' + c + "</label>"; }).join("") + "</div>" +
       '<div class="row"><button class="pri" data-do="g9disp">🚀 立即派送</button></div></div>';
@@ -77,7 +77,7 @@ var KCG9 = (function () {
   function readDisp() {
     var text = ($("dp_text").value || "").trim(), mins = Math.max(1, Math.min(600, +$("dp_min").value || 10)), pts = +$("dp_pts").value;
     var tg = $("dp_all").checked ? [] : [].slice.call(document.querySelectorAll("[data-dpc]")).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.dpc; });
-    return { text: text, tip: ($("dp_tip").value || "").trim(), mode: $("dp_mode").value, mins: mins, pts: isNaN(pts) ? 10 : pts, target: tg, none: !$("dp_all").checked && !tg.length };
+    return { text: text, tip: ($("dp_tip").value || "").trim(), mode: $("dp_mode").value, mins: mins, pts: isNaN(pts) ? (KCQ.q().cfg.bPts || 50) : pts, target: tg, none: !$("dp_all").checked && !tg.length };
   }
   function pushTask(o, clueImg) {
     var q = KCQ.q(), now = Date.now(), no = q.tasks.filter(function (t) { return t.cat === "B"; }).reduce(function (a, t) { return Math.max(a, +t.no || 0); }, 0) + 1, end = now + o.mins * 60000;

@@ -14,6 +14,8 @@
   KCQ.q = function () {
     var S = KC.S; if (!S.quest) S.quest = JSON.parse(JSON.stringify(DEF));
     var q = S.quest; q.cfg = Object.assign({}, DEF.cfg, q.cfg); if (q.cfg.ver !== 3) { ["ver", "nLevels", "perCP", "wrong", "tMax", "tFull", "tDec"].forEach(function (k) { q.cfg[k] = DEF.cfg[k]; }); if (q.cfg.startT === "11:00" || q.cfg.startT === "09:00") q.cfg.startT = DEF.cfg.startT; if (q.cfg.endT === "17:00" || q.cfg.endT === "20:00") q.cfg.endT = DEF.cfg.endT; }
+    /* G9 2026 計分規則（只套用一次，之後行政端仍可在「闖關設定」修改）：每關 30 分×20 關＝600；全部通關 300 分鐘內得時間分 300，之後每分鐘扣 5 分（19:30 歸零）；限時任務每題 50 分 */
+    if (window.ACT === "g9" && !q.cfg.rule2026) Object.assign(q.cfg, { rule2026: 1, nLevels: 20, perCP: 30, tMax: 300, tFull: 300, tDec: 5, startT: "13:30", endT: "19:30", bPts: 50, bN: 2 });
     q.subs = q.subs || {}; q.pings = q.pings || {}; q.tasks = q.tasks || []; S.scores = S.scores || []; return q;
   };
   function taskById(id) { return KCQ.q().tasks.filter(function (t) { return t.id === id; })[0]; }
@@ -405,9 +407,9 @@
     var num = function (id, lab, v) { return '<label style="margin:0">' + lab + ' <input type="number" id="' + id + '" value="' + v + '" style="width:90px"></label>'; };
     return '<div class="card"><h3>活動時程</h3><div class="row"><label style="margin:0">日期 <input type="date" id="c_date" value="' + E(c.date) + '"></label><label style="margin:0">開始 <input type="time" id="c_st" value="' + E(c.startT) + '"></label><label style="margin:0">結束 <input type="time" id="c_en" value="' + E(c.endT) + '"></label></div>' +
       '<div class="row"><label style="margin:0"><input type="checkbox" id="c_force"' + (c.force ? " checked" : "") + '> 強制開放（測試用，忽略時間）</label></div><p class="mut">日期留空＝不限制時間。</p></div>' +
-      '<div class="card"><h3>計分規則（比照 Popworld 城市探索）</h3><div class="row">' + num("c_nl", "本次關數", c.nLevels) + num("c_pc", "每關得分", c.perCP) + num("c_w", "答錯一次扣", c.wrong) + num("c_tm", "時間分滿分", c.tMax) + num("c_tf", "滿分時限（分鐘）", c.tFull) + num("c_td", "超時每分鐘扣", c.tDec) + "</div>" +
+      '<div class="card"><h3>計分規則（比照 Popworld 城市探索）</h3><div class="row">' + num("c_nl", "本次關數", c.nLevels) + num("c_pc", "每關得分", c.perCP) + num("c_w", "答錯一次扣", c.wrong) + num("c_tm", "時間分滿分", c.tMax) + num("c_tf", "滿分時限（分鐘）", c.tFull) + num("c_td", "超時每分鐘扣", c.tDec) + (window.ACT === "g9" ? num("c_bp", "限時任務每題", c.bPts || 50) + num("c_bn", "限時任務題數", c.bN || 0) : "") + "</div>" +
       '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">📍 題目觸發半徑</h4><div class="row">' + num("c_rd", "預設觸發半徑（公尺）", c.radiusDefault) + '<button class="sec" data-do="qRadiusAll">套用到全部題目（覆蓋個別設定）</button></div><p class="mut">學生走進目標點此半徑內（再加上手機定位誤差，最多 +50 公尺）即可打卡並看到題目。個別題目可在「編輯題目」中自訂，填 0 表示使用預設值。</p></div>' +
-      '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關，滿分 " + (c.tMax + c.perCP * c.nLevels) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + "）。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
+      '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關" + (c.bN ? "；另設限時任務 " + (c.bPts || 50) + " 分／題，共 " + c.bN + " 題 " + (c.bPts || 50) * c.bN + " 分" : "") + "。滿分 " + (c.tMax + c.perCP * c.nLevels + (c.bN ? (c.bPts || 50) * c.bN : 0)) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + (c.bN ? " ＋ 限時任務 " + (c.bPts || 50) * c.bN : "") + "）。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
       '<div class="card"><h3>重新開始</h3><p class="mut">清除所有小隊的闖關紀錄與定位，題庫與設定保留。測試後正式開跑前使用。</p><div class="row"><input id="c_rs" placeholder="輸入 RESET 確認" style="width:150px"><button class="dng" data-do="qReset">清除闖關紀錄</button></div></div>' +
       '<div class="card"><h3>地圖中心</h3><div class="row"><select id="c_pre" data-do="qPre">' + PRESETS.map(function (p, i) { return '<option value="' + i + '">' + p[0] + "</option>"; }).join("") + '</select><label style="margin:0">緯度 <input id="c_lat" value="' + c.center.lat + '" style="width:110px"></label><label style="margin:0">經度 <input id="c_lng" value="' + c.center.lng + '" style="width:110px"></label></div></div>' +
       '<div class="row"><button class="pri" data-do="qSaveCfg">儲存活動設定</button></div>';
@@ -492,7 +494,7 @@
     qSaveCfg: function (d, el, c) {
       var q = KCQ.q(), g = function (i) { return +$(i).value || 0; }, cf = q.cfg;
       cf.date = $("c_date").value; cf.startT = $("c_st").value || "13:30"; cf.endT = $("c_en").value || "21:00"; cf.force = $("c_force").checked;
-      cf.nLevels = g("c_nl"); cf.perCP = g("c_pc"); cf.wrong = g("c_w"); cf.tMax = g("c_tm"); cf.tFull = g("c_tf"); cf.tDec = g("c_td"); cf.radiusDefault = Math.max(10, g("c_rd") || 120);
+      cf.nLevels = g("c_nl"); cf.perCP = g("c_pc"); cf.wrong = g("c_w"); cf.tMax = g("c_tm"); cf.tFull = g("c_tf"); cf.tDec = g("c_td"); if ($("c_bp")) { cf.bPts = g("c_bp"); cf.bN = g("c_bn"); } cf.radiusDefault = Math.max(10, g("c_rd") || 120);
       cf.center = { name: cf.center.name, lat: parseFloat($("c_lat").value) || cf.center.lat, lng: parseFloat($("c_lng").value) || cf.center.lng }; c.done(); alert("已儲存");
     },
     qPre: function (d, el, c) { var p = PRESETS[+el.value]; $("c_lat").value = p[1]; $("c_lng").value = p[2]; },
