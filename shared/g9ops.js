@@ -22,7 +22,7 @@ var KCG9 = (function () {
   function me() { return CTX && CTX.me ? CTX.me() : null; }
   function myTeam() { var m = me(); return m && m.team ? KC.team(m.team) : null; }
   function ranking() {
-    return teams().map(function (t) { var s = score(t); return { team: t.id, code: code(t), cls: clsOf(t), total: s.total, aDone: s.aDone, b: s.b || 0, wrong: s.wrongN || 0 }; })
+    return teams().map(function (t) { var s = score(t); return { team: t.id, code: code(t), cls: clsOf(t), total: s.total, aDone: s.aDone, b: s.b || 0, wrong: s.wrongN || 0, a: s.a, tp: s.done ? s.timePts : null, pen: s.pen }; })
       .sort(function (a, b) { return b.total - a.total || b.aDone - a.aDone || (a.code < b.code ? -1 : 1); })
       .map(function (r, i, arr) { r.rank = i && arr[i - 1].total === r.total && arr[i - 1].aDone === r.aDone ? arr[i - 1].rank : i + 1; return r; });
   }
@@ -90,7 +90,7 @@ var KCG9 = (function () {
   function battles() { return KC.S.notices.filter(function (n) { return n.kind === "battle"; }).slice().reverse(); }
   function battleCard(n, hi) {
     return '<div class="card g9dark"><div class="mut">📣 ' + E(n.at) + "</div>" + (n.msg ? '<p style="white-space:pre-wrap;font-size:16px;margin:6px 0">' + E(n.msg) + "</p>" : "") +
-      (n.rank && n.rank.length ? rankTable(n.rank, hi) + (n.total && n.total > n.rank.length ? '<p class="mut" style="margin:4px 0 0">（公布前 ' + n.rank.length + " 名，共 " + n.total + " 隊）</p>" : "") : "") +
+      (n.rank && n.rank.length ? lbBoard(n.rank, { key: "b" + n.id, hi: hi, compact: ROLE === "student" }) + (n.total && n.total > n.rank.length ? '<p class="mut" style="margin:4px 0 0">（公布前 ' + n.rank.length + " 名，共 " + n.total + " 隊）</p>" : "") : "") +
       (ROLE === "admin" ? '<div class="row"><button class="sm dng" data-do="g9bDel" data-id="' + n.id + '">刪除</button></div>' : "") + "</div>";
   }
   function battleAdmin() {
@@ -105,7 +105,7 @@ var KCG9 = (function () {
   }
   function battleRecv() {
     var hi = ROLE === "student" ? (myTeam() || {}).id : myCls(), bs = battles();
-    var h = ROLE === "teacher" ? '<div class="card g9dark"><h3>🏆 即時戰況（您的班級以綠色標示）</h3>' + rankTable(ranking(), hi, { theme: true }) + "</div><h3>行政端派送的戰況公告</h3>" : "<h3>📣 闖關戰況公告</h3>";
+    var h = ROLE === "teacher" ? '<div class="card g9dark"><div class="row" style="justify-content:space-between"><h3 style="margin:0">🏆 小隊積分榜</h3><span class="mut">您的班級以 ⭐ 標示｜分數變動即時重排</span></div>' + lbBoard(liveRows(), { key: "live", hi: hi }) + "</div><h3>總部派送的戰況公告</h3>" : "<h3>📣 闖關戰況公告</h3>";
     return h + (bs.map(function (n) { return battleCard(n, hi); }).join("") || '<div class="card"><p class="mut">行政端尚未派送戰況公告。</p></div>');
   }
 
@@ -231,9 +231,10 @@ var KCG9 = (function () {
     var tm = m && m.team ? KC.team(m.team) : null, hi = tm ? tm.id : "";
     var bs = battles().slice(0, 3), ns = KC.S.notices.filter(function (n) { return n.kind !== "battle" && (!n.team || (tm && n.team === tm.id)); }).slice().reverse().slice(0, 8);
     return '<div class="g9cols" id="h_note">' +
-      '<div class="card g9dark"><h3>📣 闖關戰況</h3>' + (bs.map(function (n) {
-        return '<div class="nt"><div class="mut">' + E(n.at) + "</div>" + (n.msg ? '<div style="white-space:pre-wrap;margin:2px 0 4px">' + E(n.msg) + "</div>" : "") + (n.rank && n.rank.length ? n.rank.map(function (r) { return '<div class="g9rk"' + (r.team === hi ? ' style="background:#1d4a37;font-weight:700"' : "") + "><span>" + (r.total || r.aDone ? medal(r.rank) : r.rank) + "</span><span>" + E(r.code) + "</span><span>" + r.total + " 分</span></div>"; }).join("") : "") + "</div>";
-      }).join("") || '<p class="mut">行政端尚未派送戰況公告</p>') + "</div>" +
+      '<div class="card g9dark"><h3>🏆 闖關戰況</h3>' + (bs.length ? bs.map(function (n, i) {
+        return '<div class="nt"><div class="mut">📣 ' + E(n.at) + (i ? "" : "　最新") + "</div>" + (n.msg ? '<div style="white-space:pre-wrap;margin:2px 0 4px">' + E(n.msg) + "</div>" : "") +
+          (n.rank && n.rank.length && !i ? lbBoard(n.rank, { key: "hub", hi: hi, compact: true }) + (n.total && n.total > n.rank.length ? '<p class="mut" style="margin:4px 0 0">（公布前 ' + n.rank.length + " 名，共 " + n.total + " 隊）</p>" : "") : "") + "</div>";
+      }).join("") : '<p class="mut">總部尚未派送戰況公告</p>') + "</div>" +
       '<div class="card g9dark"><h3>📢 公告</h3>' + (ns.map(function (n) { return '<div class="nt"><div class="mut">' + E(n.at) + (n.team ? "　→ 本隊" : "") + '</div><div style="white-space:pre-wrap">' + E(n.text) + "</div></div>"; }).join("") || '<p class="mut">尚無公告</p>') + "</div></div>";
   }
 
@@ -348,7 +349,7 @@ var KCG9 = (function () {
   document.addEventListener("click", function (e) { var x = e.target.closest && e.target.closest("[data-g9x]"); if (x) { var t = x.closest(".g9t"); if (t) setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 0); } });
   (function () {
     var st = document.createElement("style");
-    st.textContent = ".lbh,.lbr{display:grid;grid-template-columns:52px minmax(0,1.6fr) 70px repeat(5,minmax(0,1fr));gap:6px;align-items:center;text-align:center}.lbh{font-size:12px;opacity:.7;padding:4px 8px}.lbr{position:relative;padding:8px;margin:5px 0;border-radius:10px;background:rgba(255,255,255,.06);transition:background .6s}.lbr .lbc{text-align:left;display:flex;flex-direction:column;min-width:0}.lbr .lbc small{opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbn{font-size:22px;font-weight:700}.lbt b{font-size:22px;color:#ffd54a}.lbr.top1{background:rgba(255,213,74,.22)}.lbr.top2{background:rgba(200,200,210,.18)}.lbr.top3{background:rgba(205,127,50,.2)}.lbr.up{background:rgba(46,158,91,.45)}.lbr.dn{background:rgba(198,40,40,.45)}.lbd{position:absolute;right:8px;top:-8px;font-style:normal;font-weight:700;font-size:13px;background:#2e9e5b;color:#fff;padding:1px 7px;border-radius:99px;animation:lbf 2.5s forwards}.lbr.dn .lbd{background:#c62828}@keyframes lbf{0%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}@media(max-width:600px){.lbh,.lbr{grid-template-columns:40px minmax(0,1.4fr) 56px repeat(5,minmax(0,1fr));font-size:12px}.lbn,.lbt b{font-size:17px}}" + "#g9toast{position:fixed;top:8px;left:8px;right:8px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}" +
+    st.textContent = ".lbh,.lbr{display:grid;grid-template-columns:52px minmax(0,1.6fr) 70px repeat(5,minmax(0,1fr));gap:6px;align-items:center;text-align:center}.lbh{font-size:12px;opacity:.7;padding:4px 8px}.lbr{position:relative;padding:8px;margin:5px 0;border-radius:10px;background:rgba(255,255,255,.06);transition:background .6s}.lbr .lbc{text-align:left;display:flex;flex-direction:column;min-width:0}.lbr .lbc small{opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbn{font-size:22px;font-weight:700}.lbt b{font-size:22px;color:#ffd54a}.lbr.top1{background:rgba(255,213,74,.22)}.lbr.top2{background:rgba(200,200,210,.18)}.lbr.top3{background:rgba(205,127,50,.2)}.g9dark h3,.g9dark h3 *{color:#fff!important}.lbr.me{outline:2px solid #4cd38a;background:rgba(46,158,91,.22)}.lbcp .lbh,.lbcp .lbr{grid-template-columns:40px minmax(0,1fr) 56px 52px}.lbcp .lbn,.lbcp .lbt b{font-size:17px}.lbcp .lbr{padding:6px 4px;margin:4px 0}.lbcp .lbc b{white-space:nowrap;font-size:14px}.lbcp .lbh{padding:2px 4px}@media(max-width:600px){.lbcp .lbh,.lbcp .lbr{grid-template-columns:26px minmax(0,1fr) 40px;gap:4px}.lbcp .lbh>span:nth-child(4),.lbcp .lbr>span:nth-child(4){display:none}.lbcp .lbn,.lbcp .lbt b{font-size:15px}.lbcp .lbc b{font-size:13px}}.lbr.up{background:rgba(46,158,91,.45)}.lbr.dn{background:rgba(198,40,40,.45)}.lbd{position:absolute;right:8px;top:-8px;font-style:normal;font-weight:700;font-size:13px;background:#2e9e5b;color:#fff;padding:1px 7px;border-radius:99px;animation:lbf 2.5s forwards}.lbr.dn .lbd{background:#c62828}@keyframes lbf{0%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}@media(max-width:600px){.lbh,.lbr{grid-template-columns:40px minmax(0,1.4fr) 56px repeat(5,minmax(0,1fr));font-size:12px}.lbn,.lbt b{font-size:17px}}" + "#g9toast{position:fixed;top:8px;left:8px;right:8px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}" +
       ".g9t{pointer-events:auto;display:flex;gap:8px;align-items:center;max-width:560px;width:100%;background:#111;color:#f2f2f2;border:2px solid #f0c95a;border-radius:14px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.35);font-size:14px;animation:g9in .25s}" +
       "@keyframes g9in{from{transform:translateY(-20px);opacity:0}}" +
       ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:#000;border-radius:12px;margin-bottom:8px}" +
@@ -366,36 +367,40 @@ var KCG9 = (function () {
     document.head.appendChild(st);
   })();
 
-  /* ================= 行政端：小隊積分榜（分數變動時名次即時滾動） ================= */
-  var LB = { pos: {}, pts: {} };
-  function lbView() {
-    var rows = teams().map(function (t) { var s = score(t); return { id: t.id, code: code(t), cls: clsOf(t), s: s }; })
-      .sort(function (a, b) { return b.s.total - a.s.total || b.s.aDone - a.s.aDone || (a.code < b.code ? -1 : 1); });
-    rows.forEach(function (r, i, a) { r.rank = i && a[i - 1].s.total === r.s.total && a[i - 1].s.aDone === r.s.aDone ? a[i - 1].rank : i + 1; });
-    var nA = KCQ.activeTasks("A").length;
-    return '<div class="card g9dark"><div class="row" style="justify-content:space-between"><h3 style="margin:0">🏆 小隊積分榜</h3><span class="mut">分數一有變動就自動重新排序｜' + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + " 更新</span></div>" +
-      '<div class="lbh"><span>名次</span><span>小隊</span><span>總分</span><span>關卡</span><span>時間</span><span>限時</span><span>扣分</span><span>通關</span></div><div id="lbList">' +
+  /* ================= 小隊積分榜（行政端、教師端、學生端共用外觀；分數變動時名次即時滾動） ================= */
+  var LB = {};
+  function liveRows() { return ranking().map(function (r) { return Object.assign({}, r, { theme: theme(KC.team(r.team) || {}) }); }); }
+  /* rows：ranking() 格式；opt.key 動畫用的榜單代號、opt.hi 要標示的小隊 id 或班級、opt.compact 窄版（名次／小隊／總分／通關） */
+  function lbBoard(rows, opt) {
+    opt = opt || {}; var nA = KCQ.activeTasks("A").length, cp = opt.compact, dash = function (v) { return v == null ? "—" : v; };
+    var head = cp ? "<span>名次</span><span>小隊</span><span>總分</span><span>通關</span>" : "<span>名次</span><span>小隊</span><span>總分</span><span>關卡</span><span>時間</span><span>限時</span><span>扣分</span><span>通關</span>";
+    return '<div class="lbw' + (cp ? " lbcp" : "") + '"><div class="lbh">' + head + '</div><div class="lbList" data-lbk="' + E(opt.key || "x") + '">' +
       rows.map(function (r) {
-        var s = r.s;
-        return '<div class="lbr' + (r.rank <= 3 && (s.total || s.aDone) ? " top" + r.rank : "") + '" data-lb="' + E(r.id) + '" data-pts="' + s.total + '"><span class="lbn">' + (s.total || s.aDone ? medal(r.rank) : "—") + '</span><span class="lbc"><b>' + E(r.code) + '</b><small>' + E(theme(KC.team(r.id) || {}).slice(0, 16)) + '</small></span><span class="lbt"><b>' + s.total + "</b></span><span>" + s.a + "</span><span>" + (s.done ? s.timePts : "—") + "</span><span>" + (s.b || 0) + '</span><span style="color:#ff8a80">' + (s.pen ? "−" + s.pen : 0) + "</span><span>" + s.aDone + "/" + nA + "</span></div>";
+        var on = opt.hi && (opt.hi === r.team || opt.hi === r.cls), has = r.total || r.aDone;
+        return '<div class="lbr' + (r.rank <= 3 && has ? " top" + r.rank : "") + (on ? " me" : "") + '" data-lb="' + E(r.team) + '" data-pts="' + r.total + '"><span class="lbn">' + (has ? medal(r.rank) : "—") + '</span><span class="lbc"><b>' + E(r.code) + (on ? " ⭐" : "") + "</b>" + (r.theme ? "<small>" + E(String(r.theme).slice(0, 16)) + "</small>" : "") + '</span><span class="lbt"><b>' + r.total + "</b></span>" +
+          (cp ? "" : "<span>" + dash(r.a) + "</span><span>" + dash(r.tp) + "</span><span>" + (r.b || 0) + '</span><span style="color:#ff8a80">' + (r.pen == null ? "—" : r.pen ? "−" + r.pen : 0) + "</span>") + "<span>" + r.aDone + "/" + nA + "</span></div>";
       }).join("") + "</div></div>";
   }
+  function lbView() {
+    return '<div class="card g9dark"><div class="row" style="justify-content:space-between"><h3 style="margin:0">🏆 小隊積分榜</h3><span class="mut">分數一有變動就自動重新排序｜' + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + " 更新</span></div>" + lbBoard(liveRows(), { key: "live" }) + "</div>";
+  }
   function lbPost() {
-    var list = document.getElementById("lbList"); if (!list) return;
-    var rows = [].slice.call(list.querySelectorAll(".lbr")), np = {};
-    rows.forEach(function (el) {
-      var id = el.getAttribute("data-lb"), top = el.offsetTop, pts = +el.getAttribute("data-pts"); np[id] = top;
-      if (LB.pos[id] != null && LB.pos[id] !== top) { el.style.transition = "none"; el.style.transform = "translateY(" + (LB.pos[id] - top) + "px)"; el.getBoundingClientRect(); el.style.transition = "transform .9s cubic-bezier(.2,.8,.2,1)"; el.style.transform = ""; }
-      if (LB.pts[id] != null && LB.pts[id] !== pts) { var d = pts - LB.pts[id]; el.classList.add(d > 0 ? "up" : "dn"); el.insertAdjacentHTML("beforeend", '<i class="lbd">' + (d > 0 ? "+" : "") + d + "</i>"); setTimeout(function () { el.classList.remove("up", "dn"); }, 2500); }
-      LB.pts[id] = pts;
+    [].forEach.call(document.querySelectorAll(".lbList"), function (list) {
+      var k = list.getAttribute("data-lbk"), st = LB[k] || (LB[k] = { pos: {}, pts: {} }), np = {};
+      [].forEach.call(list.querySelectorAll(".lbr"), function (el) {
+        var id = el.getAttribute("data-lb"), top = el.offsetTop, pts = +el.getAttribute("data-pts"); np[id] = top;
+        if (st.pos[id] != null && st.pos[id] !== top) { el.style.transition = "none"; el.style.transform = "translateY(" + (st.pos[id] - top) + "px)"; el.getBoundingClientRect(); el.style.transition = "transform .9s cubic-bezier(.2,.8,.2,1)"; el.style.transform = ""; }
+        if (st.pts[id] != null && st.pts[id] !== pts) { var d = pts - st.pts[id]; el.classList.add(d > 0 ? "up" : "dn"); el.insertAdjacentHTML("beforeend", '<i class="lbd">' + (d > 0 ? "+" : "") + d + "</i>"); setTimeout(function () { el.classList.remove("up", "dn"); }, 2500); }
+        st.pts[id] = pts;
+      });
+      st.pos = np;
     });
-    LB.pos = np;
   }
   /* 行政端：新的待審核（關卡／限時任務上傳）也跳通知 */
   function pendKeys() { var q = KCQ.q(); return Object.keys(q.subs).filter(function (k) { return q.subs[k].status === "pending"; }); }
 
   /* ================= 掛載 ================= */
-  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team", "notice"] };
+  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave", "notice", "qreview", "pbl", "score"], student: ["home", "leave", "att", "team", "notice"] };
   function mount(role, ctx) {
     ROLE = role; CTX = ctx;
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
@@ -403,12 +408,12 @@ var KCG9 = (function () {
     function after(k, tab) { var j = -1; T.forEach(function (t, x) { if (t[0] === k) j = x; }); T.splice(j + 1, 0, tab); }
     if (role === "admin") { var si = -1; T.forEach(function (t, x) { if (t[0] === "score") si = x; }); if (si >= 0) T.splice(si, 1, ["g9lb", "🏆 小隊積分榜"]); else after("qrank", ["g9lb", "🏆 小隊積分榜"]); V.g9lb = lbView; }
     if (role === "admin") { after("pbl", ["g9disp", "⏱ 限時任務派送"]); after("g9disp", ["g9battle", "📣 戰況公告"]); after("g9battle", ["g9chat", "📞 小隊 CALL OUT"]); V.g9disp = dispView; V.g9battle = battleAdmin; }
-    if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "📞 小隊 CALL OUT"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
+    if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "📞 小隊 CALL OUT"]); after("g9chat", ["g9battle", "🏆 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
     if (role === "student") { after("quest", ["g9chat", "📞 CALL OUT總部"]); }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
     V.notice = noticeView;
     T.forEach(function (t) { if (t[0] === "notice") t[1] = role === "admin" ? "📢 公告廣播" : "📢 公告"; });
-    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); if (ROLE === "admin") lbPost(); var hn = root.querySelector("#h_note"); if (hn && hn.classList.contains("card")) hn.classList.add("g9dark"); if (ROLE === "student") qmPost(); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
+    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); lbPost(); var hn = root.querySelector("#h_note"); if (hn && hn.classList.contains("card")) hn.classList.add("g9dark"); if (ROLE === "student") qmPost(); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
 
     H.g9pick = function (d) { ui.chatTeam = d.team; ctx.render(); };
     H.g9goChat = function (d) { ui.chatTeam = d.team; H.tab({ t: "g9chat" }); };
