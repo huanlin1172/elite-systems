@@ -56,6 +56,8 @@ var KCPBL = (function () {
     var all = list();
     if (!all.length) return '<div class="card"><h3>📚 專題小隊</h3><p class="mut">' + (role === "admin" ? "尚未建立專題小隊資料。請按上方「匯入 Excel」載入分組名單，或按「新增小隊」手動建立。" : "行政端尚未公布專題小隊名單。") + "</p></div>";
     var mine = role === "student" ? all.filter(function (g) { return isMine(g, me); }) : [];
+    if (role === "student") { var tm = me && me.team && KC.team ? KC.team(me.team) : null, byT = tm ? mine.filter(function (g) { return code(tm.code || tm.name) === code(g.group); }) : []; if (byT.length) mine = byT; }
+    if (role === "student") return mine.length ? mine.map(function (g) { return card(g, { open: true, mine: true, me: me }); }).join("") : '<div class="card"><h3>📚 專題小隊</h3><p class="mut">找不到你的小隊資料，請聯絡老師。</p></div>';   /* 學生端只看自己的小隊 */
     return (mine.length ? mine.map(function (g) { return card(g, { open: true, mine: true, me: me }); }).join("") : "") +
       '<div class="card"><h3>📚 全部專題小隊</h3>' + toolbar(all) + "</div>" +
       all.map(function (g) { return card(g, { admin: role === "admin", me: me, mine: mine.indexOf(g) >= 0 }); }).join("");
