@@ -257,15 +257,17 @@ var KCG9 = (function () {
     var host = $("g9qmapHost"); if (!host || !QM.map) return;
     var tm = myTeam(); if (!tm) return;
     var L = window.L, q = KCQ.q(); QM.lay.clearLayers();
-    var me = QM.me; if (!me) { var p = q.pings[tm.id]; if (p && p.lat && Date.now() - p.t < 600000) me = [p.lat, p.lng]; }
+    var sid = window.KCTEST ? "T|" + tm.id : tm.id;
+    var me = QM.me; if (!me && !window.KCTEST) { var p = q.pings[tm.id]; if (p && p.lat && Date.now() - p.t < 600000) me = [p.lat, p.lng]; }
     var pts = [], near = null;
     KCQ.activeTasks("A").filter(function (t) { return t.lat && t.lng && KCQ.forTeam(t, tm); }).forEach(function (t) {
-      var sb = KCQ.sub(tm.id, t.id), st = sb ? sb.status : "", col = st === "approved" ? "#2e9e5b" : st === "pending" ? "#e0a21b" : st === "rejected" ? "#d9534f" : sb && sb.arrived ? "#2f6bd6" : "#7a7f87";
+      var sb = KCQ.sub(sid, t.id), st = sb ? sb.status : "", w = (sb && sb.wrong) || 0;
+      var col = st === "approved" ? (sb.revealed ? "#c62828" : w ? "#c9a400" : "#2e9e5b") : st === "pending" ? "#7b1fa2" : st === "rejected" ? "#c62828" : w ? "#f57c00" : sb && sb.arrived ? "#1a73e8" : "#7a7f87";
       var d = me ? dist(me[0], me[1], t.lat, t.lng) : null;
       if (t.useGps && t.radius) L.circle([t.lat, t.lng], { radius: t.radius, color: col, weight: 1, fillOpacity: .08 }).addTo(QM.lay);
       var mk = L.circleMarker([t.lat, t.lng], { radius: 9, color: "#fff", weight: 2, fillColor: col, fillOpacity: .95 }).addTo(QM.lay);
       mk.bindTooltip("A" + t.no, { permanent: true, direction: "top", offset: [0, -8], className: "g9tip" });
-      mk.bindPopup("<b>A" + t.no + "</b> " + E(t.code || t.place || "") + (d !== null ? "<br>距離約 " + fmtD(d) : "") + "<br>" + (st === "approved" ? "✅ 已通過" : st === "pending" ? "📤 待審核" : st === "rejected" ? "↩️ 退回" : sb && sb.arrived ? "📍 已抵達" : "尚未完成"));
+      mk.bindPopup("<b>A" + t.no + "</b> " + E(t.code || t.place || "") + (d !== null ? "<br>距離約 " + fmtD(d) : "") + "<br>" + (st === "approved" ? (sb.revealed ? "❌ 未得分（已公布答案）" : w ? "✅ 完成（答錯 " + w + " 次）" : "✅ 完成") : w && st !== "pending" ? "⚠️ 已答錯 " + w + " 次" : st === "pending" ? "📤 待審核" : st === "rejected" ? "↩️ 退回" : sb && sb.arrived ? "📍 已抵達" : "尚未完成"));
       pts.push([t.lat, t.lng]);
       if (d !== null && st !== "approved" && st !== "pending" && (!near || d < near.d)) near = { t: t, d: d };
     });
@@ -279,7 +281,7 @@ var KCG9 = (function () {
     var n = $("g9qnote");
     if (n) n.innerHTML = (me ? "🔵 我們的位置" + (QM.meAcc ? "（誤差約 " + Math.round(QM.meAcc) + " 公尺）" : "") : "⏳ 正在取得 GPS 位置…") +
       (near ? "　｜　最近的未完成關卡：<b>A" + near.t.no + "</b> 約 " + fmtD(near.d) : "") +
-      '<br><span style="color:#2e9e5b">●</span>通過 <span style="color:#e0a21b">●</span>待審 <span style="color:#d9534f">●</span>退回 <span style="color:#2f6bd6">●</span>已抵達 <span style="color:#7a7f87">●</span>未完成　<button class="sm sec" data-do="g9qCenter">📍 回到我的位置</button>';
+      '<br><span style="color:#7a7f87">●</span>未開始 <span style="color:#1a73e8">●</span>已觸發 <span style="color:#f57c00">●</span>作答中已扣分 <span style="color:#2e9e5b">●</span>完成 <span style="color:#c9a400">●</span>完成有扣分 <span style="color:#c62828">●</span>未得分　<button class="sm sec" data-do="g9qCenter">📍 回到我的位置</button>';
   }
   function qmPost() {
     var host = $("g9qmapHost"); if (!host) return;
