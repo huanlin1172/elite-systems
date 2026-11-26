@@ -61,6 +61,7 @@
     var q = KCQ.q(), c = q.cfg, r = { a: 0, b: 0, aDone: 0, last: 0, wrongN: 0, pen: 0, timePts: 0, dur: null, done: false };
     Object.keys(q.subs).forEach(function (k) {
       var s = q.subs[k]; if (s.team !== tid) return;
+      if (s.task === "_start") { r.start = s.t; return; }
       var t = taskById(s.task); if (!t || !t.active) return;
       if (t.cat === "B") { if (s.status === "approved") r.b += s.pts || 0; return; }
       if (t.cat !== "A") return;
@@ -72,7 +73,8 @@
     var aAll = activeTasks("A").length;
     if (aAll && r.aDone >= aAll) {
       r.done = true;
-      if (c.date) { r.dur = Math.max(0, Math.round((r.last - new Date(c.date + "T" + c.startT).getTime()) / 60000)); r.timePts = KCQ.timeScore(r.dur); }
+      var st0 = r.start || (c.date ? new Date(c.date + "T" + c.startT).getTime() : 0);
+      if (st0) { r.dur = Math.max(0, Math.round((r.last - st0) / 60000)); r.timePts = KCQ.timeScore(r.dur); }
     }
     r.bonus = r.timePts; r.e = 0;
     r.total = r.a + r.timePts - r.pen + r.b; return r;
@@ -138,7 +140,7 @@
   /* ---------- 方位導航：手機 GPS＋羅盤，顯示距離、方位與靠近／遠離效果 ---------- */
   var nav = { on: false, task: null, pos: null, d: null, hist: [], trend: "", heading: null, err: "", wid: null, hasHeading: false };
   var navCss = document.createElement("style");
-  navCss.textContent = ".qrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.qrow:last-child{border-bottom:0}.qno{flex:0 0 40px}.qtx{flex:1;min-width:0;overflow-wrap:anywhere}.qrow .b,.qrow button{flex:0 0 auto;white-space:nowrap}" + ".qnav{border-radius:16px;padding:14px;margin:10px 0;background:linear-gradient(160deg,#16324a,#0f2233);color:#fff;text-align:center;position:relative;overflow:hidden;transition:background .4s}" +
+  navCss.textContent = ".qrow[class*=qs-]{border-left:6px solid #c9ced6;padding-left:8px;margin:4px 0;border-radius:6px}.qs-on{border-left-color:#1a73e8!important;background:rgba(26,115,232,.10)}.qs-wrong{border-left-color:#f57c00!important;background:rgba(245,124,0,.13)}.qs-ok{border-left-color:#2e7d32!important;background:rgba(46,125,50,.13)}.qs-part{border-left-color:#c9a400!important;background:rgba(201,164,0,.16)}.qs-zero{border-left-color:#c62828!important;background:rgba(198,40,40,.12)}.qs-pend{border-left-color:#7b1fa2!important;background:rgba(123,31,162,.10)}.qleg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;font-size:12px}.qleg span{border-left:5px solid #c9ced6;padding:1px 6px;border-radius:4px}" + ".qrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.qrow:last-child{border-bottom:0}.qno{flex:0 0 40px}.qtx{flex:1;min-width:0;overflow-wrap:anywhere}.qrow .b,.qrow button{flex:0 0 auto;white-space:nowrap}" + ".qnav{border-radius:16px;padding:14px;margin:10px 0;background:linear-gradient(160deg,#16324a,#0f2233);color:#fff;text-align:center;position:relative;overflow:hidden;transition:background .4s}" +
     ".qnav.near{background:linear-gradient(160deg,#1f6b3a,#123d22)}.qnav.far{background:linear-gradient(160deg,#6b2a2a,#3a1414)}.qnav.here{background:linear-gradient(160deg,#c78a00,#7a4f00)}" +
     ".qnav svg{width:190px;height:190px;max-width:70%}.qn-d{font-size:34px;font-weight:700;line-height:1.1}.qn-s{font-size:14px;opacity:.9}" +
     ".qn-t{margin-top:6px;display:inline-block;padding:3px 14px;border-radius:99px;background:rgba(255,255,255,.18);font-size:15px;font-weight:600}" +
@@ -249,7 +251,7 @@
 
   /* ================= 學生端 ================= */
   function elapsed(c, sc) {
-    if (!c.date) return "—"; var st = new Date(c.date + "T" + c.startT).getTime(), end = sc && sc.done ? sc.last : Date.now(), m = Math.floor((end - st) / 60000);
+    if (!c.date && !(sc && sc.start)) return "—"; var st = sc && sc.start ? sc.start : new Date(c.date + "T" + c.startT).getTime(), end = sc && sc.done ? sc.last : Date.now(), m = Math.floor((end - st) / 60000);
     if (m < 0) return "未開始"; return Math.floor(m / 60) + "時" + ("0" + (m % 60)).slice(-2) + "分";
   }
   function studentView(me) {
@@ -258,65 +260,56 @@
     if (!team) return '<div class="card"><p class="mut">尚未編組，編組完成後即可闖關。</p></div>';
     var es = KCQ.eventState(), onlyDisp = es !== "open" && q.tasks.some(function (t) { return t.disp && t.active && inWindow(t) === "open" && KCQ.forTeam(t, team); });
     if (onlyDisp) es = "open";   /* 闖關時段外，仍可作答行政端派送中的限時任務 */
-    var TB = testOn() ? '<div class="row" style="margin:0 0 8px"><button class="sec" data-do="qTest">🧪 關卡測試（不需定位、不計分）</button></div>' : "";
-    if (ui.test) return testView();
+    var TB = testOn() ? '<div class="row" style="margin:0 0 8px"><button class="sec" data-do="qTest">🧪 關卡測試（不需定位，計分與正式分開）</button></div>' : "";
+    if (ui.test) {
+      if (!testOn()) { ui.test = null; ui.task = null; }
+      else { var pt = { id: "T|" + team.id, name: team.name + "（測試）", code: team.code, cls: team.cls }; return testHead() + (ui.task ? taskDetail(me, pt) : listView(q, pt, false)); }
+    }
     if (es !== "open") return TB + '<div class="card"><h3>闖關</h3><p>' + (es === "before" ? "活動尚未開始（" + E(q.cfg.date) + " " + E(q.cfg.startT) + " 開放）" : "活動已結束") + "</p></div>";
     if (ui.task) return taskDetail(me, team);
     if (TB) return TB + listView(q, team, onlyDisp);
     return listView(q, team, onlyDisp);
   }
+  /* 關卡狀態與顏色：未開始／已觸發／作答中有扣分／完成（全對）／完成有扣分／未得分（公布答案）／待審核／退回 */
+  function qState(t, s) {
+    var st = s ? s.status : "new", w = (s && s.wrong) || 0, cw = KCQ.q().cfg.wrong, pen = Math.min(w * cw, KCQ.q().cfg.perCP);
+    if (st === "approved") {
+      if (t.cat !== "A") return { c: "ok", b: badge("完成 +" + s.pts, "ok") };
+      if (s.revealed) return { c: "zero", b: badge("未得分 0（−" + pen + "）", "no") };
+      return w ? { c: "part", b: badge("完成 +" + netPts(s) + "（−" + pen + "）", "wn") } : { c: "ok", b: badge("完成 +" + s.pts, "ok") };
+    }
+    if (st === "pending") return { c: "pend", b: badge("待審核", "wn") };
+    if (st === "rejected") return { c: "zero", b: badge("退回，請修正", "no") };
+    if (w) return { c: "wrong", b: badge("答錯 " + w + " 次 −" + pen, "no") };
+    if (s && (s.arrived || st === "doing")) return { c: "on", b: badge(s.arrived ? "已觸發" : "進行中", "gr") };
+    return { c: "new", b: badge("未開始", "gr") };
+  }
+  var QLEG = '<p class="qleg"><span class="qs-new">未開始</span><span class="qs-on">已觸發</span><span class="qs-wrong">作答中・已扣分</span><span class="qs-ok">完成</span><span class="qs-part">完成・有扣分</span><span class="qs-zero">未得分</span></p>';
   function listView(q, team, onlyDisp) {
     var sc = KCQ.score(team.id);
     var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　限時任務 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分，同一關答錯 " + maxWrong() + " 次公布答案、該關 0 分。</p></div>";
     var G9 = window.ACT === "g9";
-    if (G9) html += '<div class="card"><h3>🗺️ 小隊與關卡即時位置</h3><div id="g9qmapHost"></div><p class="mut" id="g9qnote" style="margin:6px 0 0">正在取得 GPS 位置…</p></div><div class="g9cols">';
+    if (G9 && !ui.test) html += '<div class="card"><h3>🗺️ 小隊與關卡即時位置</h3><div id="g9qmapHost"></div><p class="mut" id="g9qnote" style="margin:6px 0 0">正在取得 GPS 位置…</p></div><div class="g9cols">';
     [["A", "關卡列表"], ["B", G9 ? "⏱ 限時挑戰" : "⏱ 限時挑戰（行政端核可後加分）"]].forEach(function (g) {
       var l = activeTasks(g[0]).filter(function (t) { return KCQ.forTeam(t, team) && (!onlyDisp || (t.disp && inWindow(t) === "open")); }); if (!l.length) return;
       if (g[0] === "B") l.sort(function (a, b) { var oa = a.endAt && inWindow(a) === "open" ? 0 : 1, ob = b.endAt && inWindow(b) === "open" ? 0 : 1; return oa - ob || (b.startAt || 0) - (a.startAt || 0) || a.no - b.no; });
-      html += '<div class="card"><h3>' + g[1] + "</h3>" + l.map(function (t) {
+      html += '<div class="card"><h3>' + g[1] + "</h3>" + (g[0] === "A" ? QLEG : "") + l.map(function (t) {
         var s = getSub(team.id, t.id), st = s ? s.status : "new";
-        var b = st === "approved" ? (s.revealed ? badge("公布答案 +0", "no") : badge("通過 +" + (t.cat === "A" ? netPts(s) : s.pts), "ok")) : st === "pending" ? badge("待審核", "wn") : st === "rejected" ? badge("退回，請修正", "no") : st === "doing" ? badge("進行中", "gr") : badge("未開始", "gr");
-        return '<div class="qrow"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + (t.endAt ? (inWindow(t) === "open" ? "限時派送" : "已截止") : bWin(t)) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
+        var k = qState(t, s);
+        return '<div class="qrow qs-' + k.c + '"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + (t.endAt ? (inWindow(t) === "open" ? "限時派送" : "已截止") : bWin(t)) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + k.b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
       }).join("") + "</div>";
     });
     if (G9) html += "</div>";
     return html || '<div class="card"><p class="mut">行政端尚未設定本次活動任務。</p></div>';
   }
-  /* 關卡測試：不觸發 GPS、不寫入任何作答紀錄，也不扣分 */
+  /* 關卡測試：完整比照正式闖關（計分、扣分、公布答案、時間分），但不需 GPS 觸發；
+     紀錄寫在測試專用小隊「T|小隊id」，不影響正式成績，可一鍵重設 */
   function testOn() { return window.ACT === "g9" && KCQ.q().cfg.testOn !== false; }
-  function testView() {
-    var q = KCQ.q(), T = ui.test;
-    if (!testOn()) { ui.test = null; return '<div class="card"><p class="mut">行政端已關閉關卡測試。</p><button class="sec" data-do="qTestExit">← 回闖關</button></div>'; }
-    var head = '<div class="card" style="border:2px dashed var(--wn,#e0a000)"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位、不計分、不扣分，作答不會送出</span><button class="sm sec" data-do="qTestExit">結束測試</button></div></div>';
-    if (!T.id) {
-      return head + '<div class="card"><h3>選擇要測試的關卡</h3>' + activeTasks("A").map(function (t) {
-        return '<div class="qrow"><b class="qno">' + E(t.code || "A" + t.no) + '</b><span class="qtx">' + E((t.place || t.item || "") + (t.item && t.place ? "：" + t.item : "")) + '</span><button class="sm sec" data-do="qTOpen" data-id="' + t.id + '">開始</button></div>';
-      }).join("") + "</div>";
-    }
-    var t = taskById(T.id); if (!t) { T.id = null; return testView(); }
-    var d = ui.draft, ok = T.ok, ty = atypeOf(t), needAns = t.mode === "text" || t.mode === "match" || t.mode === "matchAuto";
-    var h = head + '<div class="card"><div class="row"><button class="sm sec" data-do="qTBack">← 關卡清單</button><b>' + E(t.code || "A" + t.no) + "</b> " + badge(MODES[t.mode], "gr") + "</div>";
-    h += '<p class="mut">📍 ' + E(t.place || "") + (t.addr ? "　" + E(t.addr) : "") + "（正式闖關需走進觸發半徑 " + radiusOf(t) + " 公尺內才會解鎖）</p>";
-    if (t.hint) h += '<h3 style="margin-top:12px">① 地圖判讀</h3><p>' + E(t.hint) + "</p>";
-    if (t.item) h += "<h3>" + E(t.item) + "</h3>";
-    if (t.intro) h += '<h3 style="margin-top:12px">關卡故事</h3>' + story(t.intro, t) + (t.introImg ? img(t.introImg) : "");
-    h += '<h3 style="margin-top:12px">② 謎題</h3><p style="white-space:pre-wrap">' + E(t.text) + "</p>" + (t.clueImg ? "<p>" + img(t.clueImg) + "</p>" : "") + (t.note ? '<p class="mut" style="white-space:pre-wrap">' + E(t.note) + "</p>" : "");
-    if (t.tip) h += T.tip ? '<div class="nt"><b>💡 提示</b>　' + E(t.tip) + (t.tipImg ? "<br>" + img(t.tipImg) : "") + "</div>" : '<div class="row"><button class="sm sec" data-do="qTTip">💡 需要提示</button></div>';
-    if (needAns) {
-      var inputs = ""; ok = ok || T.reveal;
-      if (ty === "choice") inputs = optLetters(t).map(function (L) { return '<label style="display:inline-block;margin:4px 10px 4px 0"><input type="checkbox" data-qsel="' + L + '"' + ((d.sel || []).indexOf(L) >= 0 ? " checked" : "") + (ok ? " disabled" : "") + "> " + L + "</label>"; }).join("");
-      else if (nparts(t) > 1) { for (var pi = 0; pi < nparts(t); pi++) inputs += '<input data-qin="p' + pi + '" placeholder="第 ' + (pi + 1) + ' 格" value="' + E(d["p" + pi] || "") + '" style="min-width:130px"' + (ok ? " disabled" : "") + ">"; }
-      else inputs = '<input data-qin="ans" value="' + E(d.ans || "") + '" style="flex:1;min-width:160px"' + (ok ? " disabled" : "") + ">";
-      h += "<label>你們的答案" + (T.wrong ? "（測試中答錯 " + T.wrong + " 次，不扣分" + (T.reveal ? "" : "；再錯 " + (maxWrong() - T.wrong) + " 次將公布答案") + "）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs + (ok ? "" : '<button class="pri" data-do="qTAns">核對答案</button>') + "</div>";
-      if (T.ok) h += "<p>" + badge("答對了！", "ok") + "</p>"; else if (T.msg && !T.reveal) h += '<p class="mut">' + E(T.msg) + "</p>";
-      if (T.reveal) h += "<p>" + badge("答錯 " + T.wrong + " 次，已公布答案（正式闖關時本關 0 分）", "no") + "</p>";
-      if (t.answer && (ok || T.reveal)) h += "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>";
-    }
-    if (ok || !needAns) { if (t.after) h += "<h3>後續故事</h3>" + story(t.after, t); if (t.afterImg) h += img(t.afterImg); }
-    if (t.mode !== "matchAuto") h += '<h3 style="margin-top:12px">③ ' + (t.mode === "media" ? "上傳成果" : "拍照") + '</h3><p class="mut">' + E(t.photoTip || "") + "（正式闖關時在這裡拍照上傳；測試模式不送出）</p>";
-    var L = activeTasks("A"), i = L.indexOf(t);
-    h += '<div class="row" style="margin-top:12px">' + (i > 0 ? '<button class="sec" data-do="qTOpen" data-id="' + L[i - 1].id + '">← 上一關</button>' : "") + (i < L.length - 1 ? '<button class="sec" data-do="qTOpen" data-id="' + L[i + 1].id + '">下一關 →</button>' : "") + "</div>";
-    return h + "</div>";
+  function tid(me) { return ui.test ? "T|" + me.team : me.team; }
+  function testStart(me) { var q = KCQ.q(), k = sk(tid(me), "_start"); if (!q.subs[k]) q.subs[k] = { team: tid(me), task: "_start", status: "meta", t: Date.now() }; }
+  function testHead() {
+    return '<div class="card" style="border:2px dashed #e0a000"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位；計分、扣分、公布答案、時間分都比照正式（時間從按下「關卡測試」起算）。紀錄與正式成績分開。</span></div>' +
+      '<div class="row"><button class="sm sec" data-do="qTestExit">結束測試，回正式闖關</button><button class="sm dng" data-do="qTReset">重設測試紀錄</button></div></div>';
   }
   function taskDetail(me, team) {
     var t = taskById(ui.task); if (!t) { ui.task = null; return studentView(me); }
@@ -325,12 +318,13 @@
     if (st === "approved") return h + (t.item ? "<h3>" + E(t.item) + "</h3>" : "") + '<p>' + (s.revealed ? badge("答錯 " + s.wrong + " 次，已公布答案，本關 0 分", "no") : badge("已通過 +" + (t.cat === "A" ? netPts(s) : s.pts) + " 分" + (t.cat === "A" && s.wrong ? "（" + s.pts + " − 答錯 " + s.wrong + " 次 × " + KCQ.q().cfg.wrong + "）" : ""), "ok")) + "</p>" + (t.answer && t.atype ? "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>" : "") + story(0, t) + (t.after ? '<h3>後續故事</h3>' + story(t.after, t) : "") + (t.afterImg ? img(t.afterImg) : "") + (s.note ? '<p class="mut">老師評語：' + E(s.note) + "</p>" : "") + "</div>";
     if (st === "pending") return h + "<p>" + badge("已送出，等待老師審核", "wn") + '</p><p class="mut">送出內容：' + E(s.answer || "") + "</p>" + (s.photoId ? media(s.photoId, s.kind) : "") + (s.link ? '<p class="mut">連結：' + E(s.link) + "</p>" : "") + "</div>";
     if (st === "rejected") h += '<p class="b no" style="display:block">已退回：' + E(s.reason || "") + (s.note ? "（" + E(s.note) + "）" : "") + "</p>";
-    var win = t.cat === "B" ? inWindow(t) : "open";
+    var win = t.cat === "B" && !ui.test ? inWindow(t) : "open";
     if (win !== "open") return h + "<p>" + (win === "before" ? "⏳ 尚未開放（" + E(t.bStart) + " 開始）" : "⏰ 已截止") + "</p></div>";
     if (t.cat === "B") h += '<p class="mut">' + (t.endAt ? bWin(t) : E(bWin(t))) + "　完成並經行政端核可可得 <b>+" + calcPts(t) + "</b> 分</p>";
-    var arrived = !t.useGps || s.arrived;
-    if (t.hint || t.useGps) h += '<h3 style="margin-top:12px">① 地圖判讀與抵達</h3><p>' + E(t.hint || "前往指定地點") + "</p>" + (t.lat && !s.arrived ? '<p><a href="' + mapLink(t) + '" target="_blank" rel="noopener">🗺️ 在地圖開啟目的地</a></p>' + (t.useGps ? navCard(t) : "") : "");
-    if (t.useGps) {
+    var arrived = !t.useGps || s.arrived || !!ui.test;
+    if (ui.test && t.useGps) h += '<p class="mut">🧪 測試模式：略過 GPS（正式闖關需走進 ' + radiusOf(t) + " 公尺內才解鎖）</p>";
+    else if (t.hint || t.useGps) h += '<h3 style="margin-top:12px">① 地圖判讀與抵達</h3><p>' + E(t.hint || "前往指定地點") + "</p>" + (t.lat && !s.arrived ? '<p><a href="' + mapLink(t) + '" target="_blank" rel="noopener">🗺️ 在地圖開啟目的地</a></p>' + (t.useGps ? navCard(t) : "") : "");
+    if (t.useGps && !ui.test) {
       h += s.arrived ? "<p>" + badge("已抵達" + (s.gpsBypass ? "（人工確認）" : ""), "ok") + "</p>"
         : '<div class="row"><button class="pri" data-do="qCheckin">📍 我到了，定位打卡</button></div>' + (ui.msg ? '<p class="mut">' + E(ui.msg) + "</p>" : "") +
           (ui.fails >= 3 ? '<div class="row"><button class="sec" data-do="qBypass">定位一直失敗？回報由老師人工確認</button></div>' : "");
@@ -366,21 +360,18 @@
     return h + "</div>";
   }
   var studentH = {
-    qTest: function (d, el, c) { stopNav(); ui.task = null; ui.test = {}; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
-    qTestExit: function (d, el, c) { ui.test = null; ui.draft = {}; c.render(); },
-    qTOpen: function (d, el, c) { ui.test = { id: d.id }; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
-    qTBack: function (d, el, c) { ui.test = {}; ui.draft = {}; c.render(); },
-    qTTip: function (d, el, c) { ui.test.tip = 1; c.render(); },
-    qTAns: function (d, el, c) {
-      var T = ui.test, t = taskById(T.id), ty = atypeOf(t), vals;
-      if (ty === "choice") vals = ui.draft.sel || [];
-      else if (nparts(t) > 1) { vals = []; for (var i = 0; i < nparts(t); i++) vals.push(String(ui.draft["p" + i] || "").trim()); }
-      else vals = [String(ui.draft.ans || "").trim()];
-      if (!vals.length || vals.some(function (x) { return !x; })) { T.msg = "請先把答案填完整"; return c.render(); }
-      if (checkAns(t, vals)) { T.ok = 1; T.msg = ""; } else { T.wrong = (T.wrong || 0) + 1; if (T.wrong >= maxWrong()) T.reveal = 1; T.msg = "答案不對（測試模式不扣分；再錯 " + (maxWrong() - T.wrong) + " 次將公布答案）"; }
+    qTest: function (d, el, c) { stopNav(); ui.task = null; ui.test = true; ui.draft = {}; testStart(c.me()); c.done(); window.scrollTo(0, 0); },
+    qTestExit: function (d, el, c) { ui.test = null; ui.task = null; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
+    qTReset: function (d, el, c) {
+      if (!confirm("清除本小隊所有測試紀錄（分數、答錯次數、時間），重新開始計時？\n正式成績不受影響。")) return;
+      var q = KCQ.q(), id = tid(c.me()); Object.keys(q.subs).forEach(function (k) { if (q.subs[k].team === id) delete q.subs[k]; });
+      ui.task = null; ui.draft = {}; testStart(c.me()); c.done();
+    },
+    qOpen: function (d, el, c) {
+      stopNav(); ui.task = d.id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0;
+      if (ui.test) { var s = getSub(tid(c.me()), d.id, true); if (!s.arrived) { s.arrived = true; s.arrivedAt = Date.now(); return c.done(); } }   /* 測試：開啟即視為已觸發 */
       c.render();
     },
-    qOpen: function (d, el, c) { stopNav(); ui.task = d.id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0; c.render(); },
     qBack: function (d, el, c) { stopNav(); ui.task = null; c.render(); },
     qNavStart: function (d, el, c) { startNav(ui.task, c); },
     qNavStop: function (d, el, c) { stopNav(); c.render(); },
@@ -388,7 +379,7 @@
       var t = taskById(ui.task);
       var judge = function (lat, lng, acc) {
         c.sync(); var me = c.me(), dist = Math.round(hav(lat, lng, t.lat, t.lng));
-        if (dist <= radiusOf(t) + Math.min(acc || 0, 50)) { var s = getSub(me.team, t.id, true); s.arrived = true; s.arrivedAt = Date.now(); ui.msg = ""; ui.fails = 0; stopNav(); c.done(); }
+        if (dist <= radiusOf(t) + Math.min(acc || 0, 50)) { var s = getSub(tid(me), t.id, true); s.arrived = true; s.arrivedAt = Date.now(); ui.msg = ""; ui.fails = 0; stopNav(); c.done(); }
         else { ui.msg = "距離目標約 " + dist + " 公尺，還沒到喔（需在 " + radiusOf(t) + " 公尺內）"; ui.fails++; c.render(); }
       };
       if (nav.on && nav.pos && Date.now() - nav.pos.t < 15000) return judge(nav.pos.lat, nav.pos.lng, nav.pos.acc);   /* 導航中直接用最新定位 */
@@ -397,10 +388,10 @@
       navigator.geolocation.getCurrentPosition(function (p) { judge(p.coords.latitude, p.coords.longitude, p.coords.accuracy); },
         function () { ui.fails++; ui.msg = "無法取得定位，請確認已允許瀏覽器使用位置"; c.render(); }, { enableHighAccuracy: true, timeout: 15000 });
     },
-    qBypass: function (d, el, c) { var s = getSub(c.me().team, ui.task, true); s.arrived = true; s.gpsBypass = true; s.arrivedAt = Date.now(); c.done(); },
-    qTip: function (d, el, c) { var s = getSub(c.me().team, ui.task, true); s.tips = (s.tips || 0) + 1; ui.tipOpen = ui.task; c.done(); },
+    qBypass: function (d, el, c) { var s = getSub(tid(c.me()), ui.task, true); s.arrived = true; s.gpsBypass = true; s.arrivedAt = Date.now(); c.done(); },
+    qTip: function (d, el, c) { var s = getSub(tid(c.me()), ui.task, true); s.tips = (s.tips || 0) + 1; ui.tipOpen = ui.task; c.done(); },
     qAnswer: function (d, el, c) {
-      var t = taskById(ui.task), me = c.me(), s = getSub(me.team, t.id, true), ty = atypeOf(t), vals, shown;
+      var t = taskById(ui.task), me = c.me(), s = getSub(tid(me), t.id, true), ty = atypeOf(t), vals, shown;
       if (ty === "choice") { vals = ui.draft.sel || []; shown = vals.slice().sort().join("、"); if (!vals.length) { ui.msg = "請先選擇答案"; return c.render(); } }
       else if (nparts(t) > 1) { vals = []; for (var i = 0; i < nparts(t); i++) vals.push(String(ui.draft["p" + i] || "").trim()); if (vals.some(function (x) { return !x; })) { ui.msg = "每一格都要填寫"; return c.render(); } shown = vals.join(" / "); }
       else { vals = [String(ui.draft.ans || "").trim()]; shown = vals[0]; if (!shown) { ui.msg = "請先輸入答案"; return c.render(); } }
@@ -417,8 +408,8 @@
       c.done();
     },
     qSubmit: function (d, el, c) {
-      var t = taskById(ui.task), me = c.me(), team = me.team;
-      if (t.cat === "B" && inWindow(t) !== "open") return alert("不在開放時間內");
+      var t = taskById(ui.task), me = c.me(), team = tid(me);
+      if (t.cat === "B" && !ui.test && inWindow(t) !== "open") return alert("不在開放時間內");
       var s = getSub(team, t.id, true), ans = String(ui.draft.ans || "").trim(), link = String(ui.draft.link || "").trim();
       if ((t.mode === "text") && !ans) return alert("請填寫答案");
       if (t.mode === "media") { if (!ui.photo && !link) return alert("請上傳照片／影片，或貼上連結"); }
@@ -436,14 +427,14 @@
   /* ================= 審核（教師端／行政端共用）================= */
   function reviewView() {
     var q = KCQ.q(), keys = Object.keys(q.subs), pend = keys.filter(function (k) { return q.subs[k].status === "pending"; }).sort(function (a, b) { return q.subs[a].at < q.subs[b].at ? -1 : 1; });
-    var apr = keys.filter(function (k) { return q.subs[k].status === "approved"; }).sort(function (a, b) { return (q.subs[b].approvedAt || 0) - (q.subs[a].approvedAt || 0); });
+    var apr = keys.filter(function (k) { return q.subs[k].status === "approved" && String(q.subs[k].team).indexOf("T|") !== 0; }).sort(function (a, b) { return (q.subs[b].approvedAt || 0) - (q.subs[a].approvedAt || 0); });
     var cat = function (k) { return k.replace(/\W/g, "_"); };
     var h = '<div class="card"><div class="row"><div class="seg"><button class="' + (ui.rv === "pending" ? "on s2" : "") + '" data-do="qRv" data-v="pending">待審核（' + pend.length + '）</button><button class="' + (ui.rv === "approved" ? "on s2" : "") + '" data-do="qRv" data-v="approved">已通過（' + apr.length + "）</button></div></div></div>";
     var list = ui.rv === "pending" ? pend : apr;
     if (!list.length) h += '<div class="card"><p class="mut">' + (ui.rv === "pending" ? "沒有待審項目" : "尚無已通過項目") + "</p></div>";
     list.forEach(function (k) {
-      var s = q.subs[k], t = taskById(s.task), tm = KC.team(s.team); if (!t) return;
-      h += '<div class="card"><div class="row"><b>' + E(tm ? tm.name : s.team) + "</b>" + badge(t.cat + t.no, "gr") + badge(MODES[t.mode], "gr") + (s.gpsBypass ? badge("定位人工確認", "wn") : "") + (s.wrong ? badge("答錯 " + s.wrong + " 次", "no") : "") + '</div><p>' + E(t.text) + "</p>" +
+      var s = q.subs[k], t = taskById(s.task), isT = String(s.team).indexOf("T|") === 0, tm = KC.team(isT ? s.team.slice(2) : s.team); if (!t) return;
+      h += '<div class="card"><div class="row"><b>' + (isT ? "🧪測試 " : "") + E(tm ? tm.name : s.team) + "</b>" + badge(t.cat + t.no, "gr") + badge(MODES[t.mode], "gr") + (s.gpsBypass ? badge("定位人工確認", "wn") : "") + (s.wrong ? badge("答錯 " + s.wrong + " 次", "no") : "") + '</div><p>' + E(t.text) + "</p>" +
         (t.answer ? '<p class="mut">標準答案：' + E(t.answer) + "</p>" : "") + '<p>學生答案：' + E(s.answer || "—") + '</p><div class="row">' +
         (t.refPhoto ? '<div><div class="mut">標準對照</div>' + img(t.refPhoto) + "</div>" : "") + (s.photoId ? '<div><div class="mut">小隊回傳</div>' + media(s.photoId, s.kind) + "</div>" : "") + (s.link ? '<div><div class="mut">連結</div><a href="' + E(s.link) + '" target="_blank" rel="noopener">' + E(s.link) + "</a></div>" : "") + "</div>";
       var lock = ui.role !== "admin";
