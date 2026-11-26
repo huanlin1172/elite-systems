@@ -75,9 +75,9 @@ var KCG9 = (function () {
     return form + (lv.length ? "<h3>進行中的限時任務</h3>" + lv.map(function (t) { return item(t, true); }).join("") : "") + (old.length ? "<h3>已截止</h3>" + old.map(function (t) { return item(t, false); }).join("") : "");
   }
   function readDisp() {
-    var text = ($("dp_text").value || "").trim(), mins = Math.max(1, Math.min(600, +$("dp_min").value || 10)), pts = +$("dp_pts").value;
+    var text = ($("dp_text").value || "").trim(), mins = Math.max(1, Math.min(600, +$("dp_min").value || 10)), pts = $("dp_pts").value === "" ? NaN : +$("dp_pts").value;
     var tg = $("dp_all").checked ? [] : [].slice.call(document.querySelectorAll("[data-dpc]")).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.dpc; });
-    return { text: text, tip: ($("dp_tip").value || "").trim(), mode: $("dp_mode").value, mins: mins, pts: isNaN(pts) ? (KCQ.q().cfg.bPts || 50) : pts, target: tg, none: !$("dp_all").checked && !tg.length };
+    return { text: text, tip: ($("dp_tip").value || "").trim(), mode: $("dp_mode").value, mins: mins, pts: isNaN(pts) || pts <= 0 ? (KCQ.q().cfg.bPts || 50) : pts, target: tg, none: !$("dp_all").checked && !tg.length };
   }
   function pushTask(o, clueImg) {
     var q = KCQ.q(), now = Date.now(), no = q.tasks.filter(function (t) { return t.cat === "B"; }).reduce(function (a, t) { return Math.max(a, +t.no || 0); }, 0) + 1, end = now + o.mins * 60000;

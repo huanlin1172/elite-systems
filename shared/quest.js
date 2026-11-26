@@ -86,7 +86,10 @@
   var GTILE = "https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}";
   KCQ.GTILE = GTILE;
   function radiusOf(t) { return t && +t.radius > 0 ? +t.radius : (KCQ.q().cfg.radiusDefault || 120); }
-  function calcPts(t) { return t && t.cat === "B" ? (t.pts == null || t.pts === "" ? 10 : +t.pts) : KCQ.q().cfg.perCP; }
+  function calcPts(t) {
+    if (t && t.cat === "B") { var bp = window.ACT === "g9" ? (KCQ.q().cfg.bPts || 50) : 10; return +t.pts > 0 ? +t.pts : bp; }   /* G9：限時任務沒設分數（空白或 0）就用「闖關設定」的每題分數 */
+    return KCQ.q().cfg.perCP;
+  }
 
   /* ---------- 答案核對（text 單一答案／parts 依序多格／set 不計順序／choice 選擇題可複選）---------- */
   function nz(x) { return String(x == null ? "" : x).toLowerCase().replace(/[Ａ-Ｚａ-ｚ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 65248); }).replace(/[\s\u3000.,，、。'’‘"“”·・\-_/／()（）]/g, ""); }
@@ -501,7 +504,7 @@
       '<div class="row"><label style="margin:0"><input type="checkbox" data-qe="useGps"' + (e.useGps ? " checked" : "") + '> 啟用 GPS 抵達打卡</label></div>' +
       '<div class="row"><label style="margin:0">緯度 <input data-qe="lat" value="' + e.lat + '" style="width:120px"></label><label style="margin:0">經度 <input data-qe="lng" value="' + e.lng + '" style="width:120px"></label><label style="margin:0">觸發半徑(公尺，0＝用預設 '+(KCQ.q().cfg.radiusDefault||120)+') <input type="number" min="0" data-qe="radius" value="' + e.radius + '" style="width:90px"></label></div>' +
       '<div class="row"><label style="margin:0">貼上 Google Maps 座標 <input id="q_paste" placeholder="1.2868, 103.8545" style="width:180px"></label><button class="sm sec" data-do="qPaste">套用</button></div>' +
-      (e.cat === "B" ? '<div class="row"><label style="margin:0">限時挑戰分數 <input type="number" data-qe="pts" value="' + (e.pts == null ? 10 : e.pts) + '" style="width:80px"></label><label style="margin:0">B 開放時間 <input type="time" data-qe="bStart" value="' + E(e.bStart) + '"></label><label style="margin:0">完成期限 <input type="time" data-qe="bEnd" value="' + E(e.bEnd) + '"></label></div>' : '<p class="mut">關卡分數一律依「⚙️ 闖關設定」的每關得分計算（目前 ' + KCQ.q().cfg.perCP + ' 分）。</p>') +
+      (e.cat === "B" ? '<div class="row"><label style="margin:0">限時挑戰分數 <input type="number" data-qe="pts" value="' + (e.pts == null || e.pts === "" ? calcPts({ cat: "B" }) : e.pts) + '" style="width:80px"></label><label style="margin:0">B 開放時間 <input type="time" data-qe="bStart" value="' + E(e.bStart) + '"></label><label style="margin:0">完成期限 <input type="time" data-qe="bEnd" value="' + E(e.bEnd) + '"></label></div>' : '<p class="mut">關卡分數一律依「⚙️ 闖關設定」的每關得分計算（目前 ' + KCQ.q().cfg.perCP + ' 分）。</p>') +
       '<label>標準對照照片（教師審核用，學生看不到）</label><input type="file" accept="image/*" data-qref="1">' + (e.refPhoto ? "<p>" + img(e.refPhoto) + "</p>" : "") +
       '<div class="row"><label style="margin:0"><input type="checkbox" data-qe="active"' + (e.active ? " checked" : "") + '> 本次活動使用</label></div><div class="row"><button class="pri" data-do="qSaveTask">儲存</button><button class="sec" data-do="qCancel">取消</button></div></div>';
   }
