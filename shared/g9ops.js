@@ -326,11 +326,17 @@ var KCG9 = (function () {
     });
     var nc = chats.filter(function (x) { return (x.t || 0) > (s.c || 0); });
     if (nc.length) { var l = nc[nc.length - 1], lt = KC.team(l.team); toast("<b>" + (ROLE === "student" ? "💬 總部回覆" : "📞 " + E(code(lt)) + " CALL OUT") + "</b><div>" + (l.img ? "📷 圖片" : l.audio ? "🎤 語音訊息" : E(l.text).slice(0, 80)) + "</div>", '<button class="sm pri" data-do="g9goChat" data-team="' + E(l.team) + '" data-g9x="1">回覆</button>'); }
-    seenSet({ b: Math.max(cur.b, s.b || 0), d: Math.max(cur.d, s.d || 0), c: Math.max(cur.c, s.c || 0) });
+    var pk = ROLE === "admin" ? pendKeys() : [], old = s.pk || [];
+    if (ROLE === "admin" && s.pk) pk.filter(function (k) { return old.indexOf(k) < 0; }).slice(-3).forEach(function (k) {
+      var sb = KCQ.q().subs[k], tk = KCQ.taskById(sb.task), isT = String(sb.team).indexOf("T|") === 0, tm2 = KC.team(isT ? sb.team.slice(2) : sb.team);
+      toast("<b>📝 " + (isT ? "🧪測試 " : "") + E(tm2 ? code(tm2) : "") + " 送出 " + (tk ? tk.cat + tk.no : "") + "，等待審核</b><div>" + E(tk ? tk.text : "").slice(0, 60) + "</div>", '<button class="sm pri" data-do="tab" data-t="qreview" data-g9x="1">去審核</button>');
+    });
+    seenSet({ b: Math.max(cur.b, s.b || 0), d: Math.max(cur.d, s.d || 0), c: Math.max(cur.c, s.c || 0), pk: pk });
   }
   function tabBadges(root) {
     var tot = 0; (ROLE === "student" ? (myTeam() ? [myTeam()] : []) : ROLE === "teacher" ? teams(myCls()) : teams()).forEach(function (t) { tot += unread(t.id); });
     var b = document.querySelector('nav.tabs button[data-t="g9chat"]'); if (b && tot && !b.querySelector(".bdg")) b.insertAdjacentHTML("beforeend", '<i class="bdg">' + tot + "</i>");
+    if (ROLE === "admin" && window.KCQ) { var pn = pendKeys().length, rb = document.querySelector('nav.tabs button[data-t="qreview"]'); if (rb && pn && !rb.querySelector(".bdg")) rb.insertAdjacentHTML("beforeend", '<i class="bdg">' + pn + "</i>"); }
     if (ROLE === "student") { var lv = disp().filter(function (t) { var tm = myTeam(); if (!tm || !live(t) || !KCQ.forTeam(t, tm)) return false; var s = KCQ.sub(tm.id, t.id); return !s || s.status === "doing" || s.status === "rejected"; }).length, q = document.querySelector('nav.tabs button[data-t="quest"]'); if (q && lv && !q.querySelector(".bdg")) q.insertAdjacentHTML("beforeend", '<i class="bdg">⏱' + lv + "</i>"); }
   }
   /* 倒數計時 */
@@ -342,7 +348,7 @@ var KCG9 = (function () {
   document.addEventListener("click", function (e) { var x = e.target.closest && e.target.closest("[data-g9x]"); if (x) { var t = x.closest(".g9t"); if (t) setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 0); } });
   (function () {
     var st = document.createElement("style");
-    st.textContent = "#g9toast{position:fixed;top:8px;left:8px;right:8px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}" +
+    st.textContent = ".lbh,.lbr{display:grid;grid-template-columns:52px minmax(0,1.6fr) 70px repeat(5,minmax(0,1fr));gap:6px;align-items:center;text-align:center}.lbh{font-size:12px;opacity:.7;padding:4px 8px}.lbr{position:relative;padding:8px;margin:5px 0;border-radius:10px;background:rgba(255,255,255,.06);transition:background .6s}.lbr .lbc{text-align:left;display:flex;flex-direction:column;min-width:0}.lbr .lbc small{opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbn{font-size:22px;font-weight:700}.lbt b{font-size:22px;color:#ffd54a}.lbr.top1{background:rgba(255,213,74,.22)}.lbr.top2{background:rgba(200,200,210,.18)}.lbr.top3{background:rgba(205,127,50,.2)}.lbr.up{background:rgba(46,158,91,.45)}.lbr.dn{background:rgba(198,40,40,.45)}.lbd{position:absolute;right:8px;top:-8px;font-style:normal;font-weight:700;font-size:13px;background:#2e9e5b;color:#fff;padding:1px 7px;border-radius:99px;animation:lbf 2.5s forwards}.lbr.dn .lbd{background:#c62828}@keyframes lbf{0%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}@media(max-width:600px){.lbh,.lbr{grid-template-columns:40px minmax(0,1.4fr) 56px repeat(5,minmax(0,1fr));font-size:12px}.lbn,.lbt b{font-size:17px}}" + "#g9toast{position:fixed;top:8px;left:8px;right:8px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}" +
       ".g9t{pointer-events:auto;display:flex;gap:8px;align-items:center;max-width:560px;width:100%;background:#111;color:#f2f2f2;border:2px solid #f0c95a;border-radius:14px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.35);font-size:14px;animation:g9in .25s}" +
       "@keyframes g9in{from{transform:translateY(-20px);opacity:0}}" +
       ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:#000;border-radius:12px;margin-bottom:8px}" +
@@ -360,6 +366,34 @@ var KCG9 = (function () {
     document.head.appendChild(st);
   })();
 
+  /* ================= 行政端：小隊積分榜（分數變動時名次即時滾動） ================= */
+  var LB = { pos: {}, pts: {} };
+  function lbView() {
+    var rows = teams().map(function (t) { var s = score(t); return { id: t.id, code: code(t), cls: clsOf(t), s: s }; })
+      .sort(function (a, b) { return b.s.total - a.s.total || b.s.aDone - a.s.aDone || (a.code < b.code ? -1 : 1); });
+    rows.forEach(function (r, i, a) { r.rank = i && a[i - 1].s.total === r.s.total && a[i - 1].s.aDone === r.s.aDone ? a[i - 1].rank : i + 1; });
+    var nA = KCQ.activeTasks("A").length;
+    return '<div class="card g9dark"><div class="row" style="justify-content:space-between"><h3 style="margin:0">🏆 小隊積分榜</h3><span class="mut">分數一有變動就自動重新排序｜' + new Date().toLocaleTimeString("zh-TW", { hour12: false }) + " 更新</span></div>" +
+      '<div class="lbh"><span>名次</span><span>小隊</span><span>總分</span><span>關卡</span><span>時間</span><span>限時</span><span>扣分</span><span>通關</span></div><div id="lbList">' +
+      rows.map(function (r) {
+        var s = r.s;
+        return '<div class="lbr' + (r.rank <= 3 && (s.total || s.aDone) ? " top" + r.rank : "") + '" data-lb="' + E(r.id) + '" data-pts="' + s.total + '"><span class="lbn">' + (s.total || s.aDone ? medal(r.rank) : "—") + '</span><span class="lbc"><b>' + E(r.code) + '</b><small>' + E(theme(KC.team(r.id) || {}).slice(0, 16)) + '</small></span><span class="lbt"><b>' + s.total + "</b></span><span>" + s.a + "</span><span>" + (s.done ? s.timePts : "—") + "</span><span>" + (s.b || 0) + '</span><span style="color:#ff8a80">' + (s.pen ? "−" + s.pen : 0) + "</span><span>" + s.aDone + "/" + nA + "</span></div>";
+      }).join("") + "</div></div>";
+  }
+  function lbPost() {
+    var list = document.getElementById("lbList"); if (!list) return;
+    var rows = [].slice.call(list.querySelectorAll(".lbr")), np = {};
+    rows.forEach(function (el) {
+      var id = el.getAttribute("data-lb"), top = el.offsetTop, pts = +el.getAttribute("data-pts"); np[id] = top;
+      if (LB.pos[id] != null && LB.pos[id] !== top) { el.style.transition = "none"; el.style.transform = "translateY(" + (LB.pos[id] - top) + "px)"; el.getBoundingClientRect(); el.style.transition = "transform .9s cubic-bezier(.2,.8,.2,1)"; el.style.transform = ""; }
+      if (LB.pts[id] != null && LB.pts[id] !== pts) { var d = pts - LB.pts[id]; el.classList.add(d > 0 ? "up" : "dn"); el.insertAdjacentHTML("beforeend", '<i class="lbd">' + (d > 0 ? "+" : "") + d + "</i>"); setTimeout(function () { el.classList.remove("up", "dn"); }, 2500); }
+      LB.pts[id] = pts;
+    });
+    LB.pos = np;
+  }
+  /* 行政端：新的待審核（關卡／限時任務上傳）也跳通知 */
+  function pendKeys() { var q = KCQ.q(); return Object.keys(q.subs).filter(function (k) { return q.subs[k].status === "pending"; }); }
+
   /* ================= 掛載 ================= */
   var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team", "notice"] };
   function mount(role, ctx) {
@@ -367,13 +401,14 @@ var KCG9 = (function () {
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
     for (var i = T.length - 1; i >= 0; i--) if (DROP[role].indexOf(T[i][0]) >= 0) T.splice(i, 1);
     function after(k, tab) { var j = -1; T.forEach(function (t, x) { if (t[0] === k) j = x; }); T.splice(j + 1, 0, tab); }
+    if (role === "admin") { var si = -1; T.forEach(function (t, x) { if (t[0] === "score") si = x; }); if (si >= 0) T.splice(si, 1, ["g9lb", "🏆 小隊積分榜"]); else after("qrank", ["g9lb", "🏆 小隊積分榜"]); V.g9lb = lbView; }
     if (role === "admin") { after("pbl", ["g9disp", "⏱ 限時任務派送"]); after("g9disp", ["g9battle", "📣 戰況公告"]); after("g9battle", ["g9chat", "📞 小隊 CALL OUT"]); V.g9disp = dispView; V.g9battle = battleAdmin; }
     if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "📞 小隊 CALL OUT"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
     if (role === "student") { after("quest", ["g9chat", "📞 CALL OUT總部"]); }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
     V.notice = noticeView;
     T.forEach(function (t) { if (t[0] === "notice") t[1] = role === "admin" ? "📢 公告廣播" : "📢 公告"; });
-    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); var hn = root.querySelector("#h_note"); if (hn && hn.classList.contains("card")) hn.classList.add("g9dark"); if (ROLE === "student") qmPost(); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
+    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); if (ROLE === "admin") lbPost(); var hn = root.querySelector("#h_note"); if (hn && hn.classList.contains("card")) hn.classList.add("g9dark"); if (ROLE === "student") qmPost(); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
 
     H.g9pick = function (d) { ui.chatTeam = d.team; ctx.render(); };
     H.g9goChat = function (d) { ui.chatTeam = d.team; H.tab({ t: "g9chat" }); };

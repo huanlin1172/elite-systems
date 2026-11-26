@@ -438,7 +438,7 @@
   /* ================= 審核（教師端／行政端共用）================= */
   function reviewView() {
     var q = KCQ.q(), keys = Object.keys(q.subs), pend = keys.filter(function (k) { return q.subs[k].status === "pending"; }).sort(function (a, b) { return q.subs[a].at < q.subs[b].at ? -1 : 1; });
-    var apr = keys.filter(function (k) { return q.subs[k].status === "approved" && String(q.subs[k].team).indexOf("T|") !== 0; }).sort(function (a, b) { return (q.subs[b].approvedAt || 0) - (q.subs[a].approvedAt || 0); });
+    var apr = keys.filter(function (k) { var x = q.subs[k]; if (x.status !== "approved") return false; var t0 = taskById(x.task); return !(t0 && t0.mode === "matchAuto" && String(x.team).indexOf("T|") === 0); })   /* 測試頁的照片／限時任務審核後也列在「已通過」（自動給分的測試關卡不列，避免太多） */.sort(function (a, b) { return (q.subs[b].approvedAt || 0) - (q.subs[a].approvedAt || 0); });
     var cat = function (k) { return k.replace(/\W/g, "_"); };
     var h = '<div class="card"><div class="row"><div class="seg"><button class="' + (ui.rv === "pending" ? "on s2" : "") + '" data-do="qRv" data-v="pending">待審核（' + pend.length + '）</button><button class="' + (ui.rv === "approved" ? "on s2" : "") + '" data-do="qRv" data-v="approved">已通過（' + apr.length + "）</button></div></div></div>";
     var list = ui.rv === "pending" ? pend : apr;
