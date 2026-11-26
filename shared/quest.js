@@ -2,7 +2,7 @@
    掛載方式：各端頁面在定義完 TABS / V / H 後呼叫 KCQ.mount(role, ctx)。 */
 (function (w) {
   var FILE_MAX = 650 * 1024;
-  var E = KC.esc, KCQ = {}, ui = { task: null, draft: {}, photo: null, msg: "", fails: 0, edit: null, filter: "A", rv: "pending" };
+  var E = KC.esc, KCQ = {}, ui = { test: !!w.KCTEST, task: null, draft: {}, photo: null, msg: "", fails: 0, edit: null, filter: "A", rv: "pending" };
   var MODES = { photo: "拍照送審", text: "填答＋拍照送審", match: "答對後拍照送審", matchAuto: "答對直接給分", media: "上傳照片／影片（行政核可）" };
   var REASONS = ["照片拍錯／非指定目標", "未全員合照／小隊成員未入鏡", "照片模糊／角度不佳", "答案內容不完整或錯誤", "其他（見備註）"];
   var PRESETS = [["魚尾獅公園", 1.2868, 103.8545], ["濱海灣金沙", 1.2834, 103.8607], ["濱海灣花園", 1.2816, 103.8636], ["牛車水", 1.2833, 103.8443], ["小印度", 1.3067, 103.8518], ["新加坡植物園", 1.3138, 103.8159], ["聖淘沙", 1.2494, 103.8303]];
@@ -58,7 +58,7 @@
     return Math.max(0, Math.min(c.tMax, c.tMax - Math.ceil(Math.max(0, durMin - c.tFull)) * c.tDec));
   };
   KCQ.score = function (tid) {
-    var q = KCQ.q(), c = q.cfg, r = { a: 0, b: 0, aDone: 0, last: 0, wrongN: 0, pen: 0, timePts: 0, dur: null, done: false };
+    var q = KCQ.q(), c = q.cfg, r = { isT: String(tid).indexOf("T|") === 0, a: 0, b: 0, aDone: 0, last: 0, wrongN: 0, pen: 0, timePts: 0, dur: null, done: false };
     Object.keys(q.subs).forEach(function (k) {
       var s = q.subs[k]; if (s.team !== tid) return;
       if (s.task === "_start") { r.start = s.t; return; }
@@ -73,7 +73,7 @@
     var aAll = activeTasks("A").length;
     if (aAll && r.aDone >= aAll) {
       r.done = true;
-      var st0 = r.start || (c.date ? new Date(c.date + "T" + c.startT).getTime() : 0);
+      var st0 = String(tid).indexOf("T|") === 0 ? r.start : (c.date ? new Date(c.date + "T" + c.startT).getTime() : 0);
       if (st0) { r.dur = Math.max(0, Math.round((r.last - st0) / 60000)); r.timePts = KCQ.timeScore(r.dur); }
     }
     r.bonus = r.timePts; r.e = 0;
@@ -251,7 +251,7 @@
 
   /* ================= 學生端 ================= */
   function elapsed(c, sc) {
-    if (!c.date && !(sc && sc.start)) return "—"; var st = sc && sc.start ? sc.start : new Date(c.date + "T" + c.startT).getTime(), end = sc && sc.done ? sc.last : Date.now(), m = Math.floor((end - st) / 60000);
+    if (sc && sc.isT && !sc.start) return "尚未開始"; if (!c.date && !(sc && sc.start)) return "—"; var st = sc && sc.start ? sc.start : new Date(c.date + "T" + c.startT).getTime(), end = sc && sc.done ? sc.last : Date.now(), m = Math.floor((end - st) / 60000);
     if (m < 0) return "未開始"; return Math.floor(m / 60) + "時" + ("0" + (m % 60)).slice(-2) + "分";
   }
   function studentView(me) {
@@ -260,10 +260,10 @@
     if (!team) return '<div class="card"><p class="mut">尚未編組，編組完成後即可闖關。</p></div>';
     var es = KCQ.eventState(), onlyDisp = es !== "open" && q.tasks.some(function (t) { return t.disp && t.active && inWindow(t) === "open" && KCQ.forTeam(t, team); });
     if (onlyDisp) es = "open";   /* 闖關時段外，仍可作答行政端派送中的限時任務 */
-    var TB = testOn() ? '<div class="row" style="margin:0 0 8px"><button class="sec" data-do="qTest">🧪 關卡測試（不需定位，計分與正式分開）</button></div>' : "";
+    var TB = "";
     if (ui.test) {
-      if (!testOn()) { ui.test = null; ui.task = null; }
-      else { var pt = { id: "T|" + team.id, name: team.name + "（測試）", code: team.code, cls: team.cls }; return testHead() + (ui.task ? taskDetail(me, pt) : listView(q, pt, false)); }
+      if (!testOn()) return '<div class="card"><h3>🧪 關卡測試</h3><p>行政端目前已關閉關卡測試。</p><p class="mut">要測試請到行政端「⚙️ 闖關設定」勾選「開放關卡測試頁」並儲存。</p></div>';
+      { var pt = { id: "T|" + team.id, name: team.name + "（測試）", code: team.code, cls: team.cls }; return testHead() + (ui.task ? taskDetail(me, pt) : listView(q, pt, false)); }
     }
     if (es !== "open") return TB + '<div class="card"><h3>闖關</h3><p>' + (es === "before" ? "活動尚未開始（" + E(q.cfg.date) + " " + E(q.cfg.startT) + " 開放）" : "活動已結束") + "</p></div>";
     if (ui.task) return taskDetail(me, team);
@@ -308,8 +308,8 @@
   function tid(me) { return ui.test ? "T|" + me.team : me.team; }
   function testStart(me) { var q = KCQ.q(), k = sk(tid(me), "_start"); if (!q.subs[k]) q.subs[k] = { team: tid(me), task: "_start", status: "meta", t: Date.now() }; }
   function testHead() {
-    return '<div class="card" style="border:2px dashed #e0a000"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位；計分、扣分、公布答案、時間分都比照正式（時間從按下「關卡測試」起算）。紀錄與正式成績分開。</span></div>' +
-      '<div class="row"><button class="sm sec" data-do="qTestExit">結束測試，回正式闖關</button><button class="sm dng" data-do="qTReset">重設測試紀錄</button></div></div>';
+    return '<div class="card" style="border:2px dashed #e0a000"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位；計分、扣分、公布答案、時間分都比照正式（時間從開啟第一關起算）。成績與正式成績分開，不會出現在排行榜。</span></div>' +
+      '<div class="row"><button class="sm dng" data-do="qTReset">重設測試紀錄</button></div></div>';
   }
   function taskDetail(me, team) {
     var t = taskById(ui.task); if (!t) { ui.task = null; return studentView(me); }
@@ -360,16 +360,14 @@
     return h + "</div>";
   }
   var studentH = {
-    qTest: function (d, el, c) { stopNav(); ui.task = null; ui.test = true; ui.draft = {}; testStart(c.me()); c.done(); window.scrollTo(0, 0); },
-    qTestExit: function (d, el, c) { ui.test = null; ui.task = null; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
     qTReset: function (d, el, c) {
       if (!confirm("清除本小隊所有測試紀錄（分數、答錯次數、時間），重新開始計時？\n正式成績不受影響。")) return;
       var q = KCQ.q(), id = tid(c.me()); Object.keys(q.subs).forEach(function (k) { if (q.subs[k].team === id) delete q.subs[k]; });
-      ui.task = null; ui.draft = {}; testStart(c.me()); c.done();
+      ui.task = null; ui.draft = {}; c.done();
     },
     qOpen: function (d, el, c) {
       stopNav(); ui.task = d.id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0;
-      if (ui.test) { var s = getSub(tid(c.me()), d.id, true); if (!s.arrived) { s.arrived = true; s.arrivedAt = Date.now(); return c.done(); } }   /* 測試：開啟即視為已觸發 */
+      if (ui.test) { testStart(c.me()); var s = getSub(tid(c.me()), d.id, true); if (!s.arrived) { s.arrived = true; s.arrivedAt = Date.now(); return c.done(); } }   /* 測試：開啟即視為已觸發 */
       c.render();
     },
     qBack: function (d, el, c) { stopNav(); ui.task = null; c.render(); },
@@ -470,7 +468,7 @@
     return '<div class="card"><h3>活動時程</h3><div class="row"><label style="margin:0">日期 <input type="date" id="c_date" value="' + E(c.date) + '"></label><label style="margin:0">開始 <input type="time" id="c_st" value="' + E(c.startT) + '"></label><label style="margin:0">結束 <input type="time" id="c_en" value="' + E(c.endT) + '"></label></div>' +
       '<div class="row"><label style="margin:0"><input type="checkbox" id="c_force"' + (c.force ? " checked" : "") + '> 強制開放（測試用，忽略時間）</label></div><p class="mut">日期留空＝不限制時間。</p></div>' +
       '<div class="card"><h3>計分規則（比照 Popworld 城市探索）</h3><div class="row">' + num("c_nl", "本次關數", c.nLevels) + num("c_pc", "每關得分", c.perCP) + num("c_w", "答錯一次扣", c.wrong) + num("c_tm", "時間分滿分", c.tMax) + num("c_tf", "滿分時限（分鐘）", c.tFull) + num("c_td", "超時每分鐘扣", c.tDec) + (window.ACT === "g9" ? num("c_bp", "限時任務每題", c.bPts || 50) + num("c_bn", "限時任務題數", c.bN || 0) : "") + "</div>" +
-      (window.ACT === "g9" ? '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">🧪 學生端關卡測試</h4><label style="margin:0"><input type="checkbox" id="c_test"' + (c.testOn !== false ? " checked" : "") + '> 開放學生端「關卡測試」（不需定位就能看到每一關的題目並核對答案，不計分）</label><p class="mut">正式活動當天請取消勾選並儲存，否則小隊可以提前看到所有題目。</p></div>' : "") +
+      (window.ACT === "g9" ? '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">🧪 關卡測試頁</h4><label style="margin:0"><input type="checkbox" id="c_test"' + (c.testOn !== false ? " checked" : "") + '> 開放關卡測試頁（功能比照正式闖關，只是不需 GPS 觸發；成績另外計算，不進排行榜）</label><p>測試頁網址：<a href="test.html" target="_blank" rel="noopener">' + E(location.href.replace(/[^\/]*$/, "test.html")) + '</a>（用小隊帳號登入，例如 901-1）</p><p class="mut">正式活動當天請取消勾選並儲存，否則拿到網址的人可以提前看到所有題目。</p></div>' : "") +
       '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">📍 題目觸發半徑</h4><div class="row">' + num("c_rd", "預設觸發半徑（公尺）", c.radiusDefault) + '<button class="sec" data-do="qRadiusAll">套用到全部題目（覆蓋個別設定）</button></div><p class="mut">學生走進目標點此半徑內（再加上手機定位誤差，最多 +50 公尺）即可打卡並看到題目。個別題目可在「編輯題目」中自訂，填 0 表示使用預設值。</p></div>' +
       '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關" + (c.bN ? "；另設限時任務 " + (c.bPts || 50) + " 分／題，共 " + c.bN + " 題 " + (c.bPts || 50) * c.bN + " 分" : "") + "。滿分 " + (c.tMax + c.perCP * c.nLevels + (c.bN ? (c.bPts || 50) * c.bN : 0)) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + (c.bN ? " ＋ 限時任務 " + (c.bPts || 50) * c.bN : "") + "）。答錯一次扣 " + c.wrong + " 分，每關最多扣到 0 分；同一關答錯 " + maxWrong() + " 次會自動公布答案，該關 0 分，小隊可繼續下一關。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
       '<div class="card"><h3>重新開始</h3><p class="mut">清除所有小隊的闖關紀錄與定位，題庫與設定保留。測試後正式開跑前使用。</p><div class="row"><input id="c_rs" placeholder="輸入 RESET 確認" style="width:150px"><button class="dng" data-do="qReset">清除闖關紀錄</button></div></div>' +
@@ -579,7 +577,7 @@
     function bind(map) { Object.keys(map).forEach(function (k) { c.H[k] = function (d, el) { map[k](d, el, ctx); }; }); }
     if (role === "student") {
       add("home", ["quest", "🗺️ 闖關"]); c.V.quest = function () { return studentView(c.me()); }; bind(studentH);
-      if (!w.KCL) setInterval(function () { var m = c.me(); if (!m || !m.team) return; var send = function (lat, lng) { KC.reload(); var q = KCQ.q(); q.pings[m.team] = { t: Date.now(), lat: lat, lng: lng, by: m.name }; KC.save(); };
+      if (!w.KCL && !w.KCTEST) setInterval(function () { var m = c.me(); if (!m || !m.team) return; var send = function (lat, lng) { KC.reload(); var q = KCQ.q(); q.pings[m.team] = { t: Date.now(), lat: lat, lng: lng, by: m.name }; KC.save(); };
         if (navigator.geolocation) navigator.geolocation.getCurrentPosition(function (p) { send(p.coords.latitude, p.coords.longitude); }, function () { send(null, null); }, { maximumAge: 30000, timeout: 8000 }); else send(null, null); }, 30000);
     } else {
       add(role === "teacher" ? "roll" : "teams", ["qreview", role === "teacher" ? "📝 關卡檢核（檢視）" : "📝 闖關審核"]); c.V.qreview = reviewView; bind(role === "teacher" ? { qRv: reviewH.qRv } : reviewH);

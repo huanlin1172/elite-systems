@@ -1,6 +1,6 @@
 /* 學生端：報名、我的小隊、請假、出缺席、公告 */
 (function () {
-  var E = KC.esc, cfg = KC.cfg, S, me, tab = "hub", H = {}, app = document.getElementById("app");
+  var E = KC.esc, cfg = KC.cfg, S, me, tab = window.KCTEST ? "quest" : "hub", H = {}, app = document.getElementById("app");
   function $(i) { return document.getElementById(i); }
   function badge(t, c) { return '<span class="b ' + c + '">' + t + "</span>"; }
   var TABS = [["home", "報名"], ["team", "我的" + cfg.unit], ["leave", "請假"], ["att", "出缺席"], ["notice", "公告"]];
