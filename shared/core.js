@@ -359,7 +359,7 @@
       var S9 = KC.reload(), TS = S9.teams.filter(function (t) { return /^(90[1-4]|9[A-F])-[1-3]$/.test(t.code || ""); })
         .sort(function (a, b) { return GO.indexOf(a.cls) - GO.indexOf(b.cls) || (a.code < b.code ? -1 : 1); });
       var capName = function (t) { var st = KC.student(t.leader || (t.roles || {}).leader); return st && !/^LD-/.test(st.id) ? st.name : ""; };
-      app.innerHTML = '<div class="login"><h1>' + KC.esc(cfg.name) + "</h1><h2>" + label + '（限各隊小隊長）</h2>' +
+      app.innerHTML = '<div class="login"><h1>' + KC.esc(cfg.name) + (window.KCTEST ? "・🧪 關卡測試" : "") + "</h1><h2>" + label + '（限各隊小隊長）</h2>' + (window.KCTEST ? '<p style="margin:0 0 8px;color:#b26a00">測試頁：不需 GPS，成績與正式分開（版本 ' + ((document.querySelector('script[src*="quest.js"]') || {}).src || "").split("v=")[1] + "）</p>" : "") +
         (TS.length ? '<select id="g9t" style="width:100%;margin-bottom:10px"><option value="">請選擇你的小隊</option>' +
           GO.map(function (c) { var l = TS.filter(function (t) { return t.cls === c; }); return l.length ? '<optgroup label="' + c + ' 班">' + l.map(function (t) { var n = capName(t); return '<option value="' + KC.esc(t.id) + '">' + KC.esc(t.code) + (n ? "　小隊長 " + KC.esc(n) : "") + "</option>"; }).join("") + "</optgroup>" : ""; }).join("") +
           '</select><input id="g9pw" type="password" placeholder="密碼（預設：小隊編碼，例如 901-1）" autocomplete="off"><button class="pri" id="g9go">小隊長登入</button><p class="mut" id="msg">學生端只開放給 30 個專題小隊的小隊長，其他組員請跟著小隊長的手機一起作答。</p>'

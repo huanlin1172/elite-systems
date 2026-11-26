@@ -322,7 +322,7 @@
   function testStart(me) { var q = KCQ.q(), k = sk(tid(me), "_start"); if (!q.subs[k]) q.subs[k] = { team: tid(me), task: "_start", status: "meta", t: Date.now() }; }
   function testHead() {
     return '<div class="card" style="border:2px dashed #e0a000"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位；計分、扣分、公布答案、時間分都比照正式（時間從開啟第一關起算）。成績與正式成績分開，不會出現在排行榜。</span></div>' +
-      '<div class="row"><button class="sm dng" data-do="qTReset">重設測試紀錄</button></div></div>';
+      '<div class="row"><button class="sm dng" data-do="qTReset">重設測試紀錄</button><span class="mut">版本 ' + (((document.querySelector('script[src*="quest.js"]') || {}).src || "").split("v=")[1] || "") + "</span></div></div>";
   }
   function taskDetail(me, team) {
     var t = taskById(ui.task); if (!t) { ui.task = null; return studentView(me); }
