@@ -226,6 +226,72 @@ var KCG9 = (function () {
     }).join("") || '<p class="mut">尚無公告</p>') + "</div>";
   }
 
+  /* ================= 學生端首頁：戰況｜公告 分欄 ================= */
+  function hubCols(m) {
+    var tm = m && m.team ? KC.team(m.team) : null, hi = tm ? tm.id : "";
+    var bs = battles().slice(0, 3), ns = KC.S.notices.filter(function (n) { return n.kind !== "battle" && (!n.team || (tm && n.team === tm.id)); }).slice().reverse().slice(0, 8);
+    return '<div class="g9cols" id="h_note">' +
+      '<div class="card g9dark"><h3>📣 闖關戰況</h3>' + (bs.map(function (n) {
+        return '<div class="nt"><div class="mut">' + E(n.at) + "</div>" + (n.msg ? '<div style="white-space:pre-wrap;margin:2px 0 4px">' + E(n.msg) + "</div>" : "") + (n.rank && n.rank.length ? n.rank.map(function (r) { return '<div class="g9rk"' + (r.team === hi ? ' style="background:#1d4a37;font-weight:700"' : "") + "><span>" + (r.total || r.aDone ? medal(r.rank) : r.rank) + "</span><span>" + E(r.code) + "</span><span>" + r.total + " 分</span></div>"; }).join("") : "") + "</div>";
+      }).join("") || '<p class="mut">行政端尚未派送戰況公告</p>') + "</div>" +
+      '<div class="card g9dark"><h3>📢 公告</h3>' + (ns.map(function (n) { return '<div class="nt"><div class="mut">' + E(n.at) + (n.team ? "　→ 本隊" : "") + '</div><div style="white-space:pre-wrap">' + E(n.text) + "</div></div>"; }).join("") || '<p class="mut">尚無公告</p>') + "</div></div>";
+  }
+
+  /* ================= 學生端闖關頁：小隊與關卡即時地圖 ================= */
+  var QM = { node: null, map: null, lay: null, me: null, meAcc: 0, watch: null, fitted: false, loading: false };
+  function dist(a, b, c, d) { var R = 6371000, r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r, h = Math.sin(x / 2) * Math.sin(x / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(y / 2) * Math.sin(y / 2); return 2 * R * Math.asin(Math.sqrt(h)); }
+  function fmtD(m) { return m >= 1000 ? (m / 1000).toFixed(1) + " 公里" : Math.round(m) + " 公尺"; }
+  function qmLoad(cb) {
+    if (window.L) return cb();
+    if (QM.loading) return; QM.loading = true;
+    var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(css);
+    var sc = document.createElement("script"); sc.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; sc.onload = function () { QM.loading = false; cb(); };
+    sc.onerror = function () { QM.loading = false; var n = $("g9qnote"); if (n) n.textContent = "地圖載入失敗（需要網路），請稍後重新整理。"; }; document.head.appendChild(sc);
+  }
+  function qmWatch() {
+    if (QM.watch !== null || !navigator.geolocation) return;
+    QM.watch = navigator.geolocation.watchPosition(function (p) { QM.me = [p.coords.latitude, p.coords.longitude]; QM.meAcc = p.coords.accuracy || 0; qmDraw(); },
+      function (e) { var n = $("g9qnote"); if (n) n.textContent = "⚠️ 無法取得 GPS 位置（" + (e && e.message || "") + "），請允許定位。"; }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+  }
+  function qmDraw() {
+    var host = $("g9qmapHost"); if (!host || !QM.map) return;
+    var tm = myTeam(); if (!tm) return;
+    var L = window.L, q = KCQ.q(); QM.lay.clearLayers();
+    var me = QM.me; if (!me) { var p = q.pings[tm.id]; if (p && p.lat && Date.now() - p.t < 600000) me = [p.lat, p.lng]; }
+    var pts = [], near = null;
+    KCQ.activeTasks("A").filter(function (t) { return t.lat && t.lng && KCQ.forTeam(t, tm); }).forEach(function (t) {
+      var sb = KCQ.sub(tm.id, t.id), st = sb ? sb.status : "", col = st === "approved" ? "#2e9e5b" : st === "pending" ? "#e0a21b" : st === "rejected" ? "#d9534f" : sb && sb.arrived ? "#2f6bd6" : "#7a7f87";
+      var d = me ? dist(me[0], me[1], t.lat, t.lng) : null;
+      if (t.useGps && t.radius) L.circle([t.lat, t.lng], { radius: t.radius, color: col, weight: 1, fillOpacity: .08 }).addTo(QM.lay);
+      var mk = L.circleMarker([t.lat, t.lng], { radius: 9, color: "#fff", weight: 2, fillColor: col, fillOpacity: .95 }).addTo(QM.lay);
+      mk.bindTooltip("A" + t.no, { permanent: true, direction: "top", offset: [0, -8], className: "g9tip" });
+      mk.bindPopup("<b>A" + t.no + "</b> " + E(t.code || t.place || "") + (d !== null ? "<br>距離約 " + fmtD(d) : "") + "<br>" + (st === "approved" ? "✅ 已通過" : st === "pending" ? "📤 待審核" : st === "rejected" ? "↩️ 退回" : sb && sb.arrived ? "📍 已抵達" : "尚未完成"));
+      pts.push([t.lat, t.lng]);
+      if (d !== null && st !== "approved" && st !== "pending" && (!near || d < near.d)) near = { t: t, d: d };
+    });
+    if (me) {
+      if (QM.meAcc) L.circle(me, { radius: Math.min(QM.meAcc, 300), color: "#1a73e8", weight: 0, fillOpacity: .15 }).addTo(QM.lay);
+      L.circleMarker(me, { radius: 10, color: "#fff", weight: 3, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(QM.lay).bindTooltip("我們 " + E(code(tm)), { permanent: true, direction: "bottom", offset: [0, 8], className: "g9tip" });
+      if (near) L.polyline([me, [near.t.lat, near.t.lng]], { color: "#1a73e8", weight: 3, dashArray: "6 6" }).addTo(QM.lay);
+      pts.push(me);
+    }
+    if (!QM.fitted && pts.length) { QM.fitted = true; try { QM.map.fitBounds(pts, { padding: [30, 30], maxZoom: 17 }); } catch (e) {} }
+    var n = $("g9qnote");
+    if (n) n.innerHTML = (me ? "🔵 我們的位置" + (QM.meAcc ? "（誤差約 " + Math.round(QM.meAcc) + " 公尺）" : "") : "⏳ 正在取得 GPS 位置…") +
+      (near ? "　｜　最近的未完成關卡：<b>A" + near.t.no + "</b> 約 " + fmtD(near.d) : "") +
+      '<br><span style="color:#2e9e5b">●</span>通過 <span style="color:#e0a21b">●</span>待審 <span style="color:#d9534f">●</span>退回 <span style="color:#2f6bd6">●</span>已抵達 <span style="color:#7a7f87">●</span>未完成　<button class="sm sec" data-do="g9qCenter">📍 回到我的位置</button>';
+  }
+  function qmPost() {
+    var host = $("g9qmapHost"); if (!host) return;
+    if (!QM.node) { QM.node = document.createElement("div"); QM.node.id = "g9qmap"; QM.node.style.cssText = "height:300px;border-radius:12px;border:1px solid var(--line);background:#dfe7ee"; }
+    if (QM.node.parentNode !== host) host.appendChild(QM.node);
+    qmWatch();
+    qmLoad(function () {
+      if (!QM.map) { var c = KCQ.q().cfg.center || { lat: 1.2839, lng: 103.8607 }; QM.map = window.L.map(QM.node).setView([c.lat, c.lng], 15); window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(QM.map); QM.lay = window.L.layerGroup().addTo(QM.map); }
+      setTimeout(function () { QM.map.invalidateSize(); qmDraw(); }, 0);
+    });
+  }
+
   /* ================= 通知（跳出提醒） ================= */
   var toastBox = null, inited = false;
   function sk() { var m = me(); return "kcg9seen:" + ROLE + ":" + (ROLE === "student" ? (m && m.id) || "" : ROLE === "teacher" ? myCls() : "a"); }
@@ -250,7 +316,7 @@ var KCG9 = (function () {
     var s = seenGet();
     if (!s) { seenSet(cur); return; }
     if (ROLE !== "admin") bs.filter(function (n) { return (n.t || 0) > (s.b || 0); }).slice(0, 2).forEach(function (n) {
-      toast("<b>📣 闖關戰況公告</b><div>" + E(n.msg || "排名已更新").slice(0, 80) + "</div>", '<button class="sm pri" data-do="tab" data-t="g9battle" data-g9x="1">查看</button>');
+      toast("<b>📣 闖關戰況公告</b><div>" + E(n.msg || "排名已更新").slice(0, 80) + "</div>", '<button class="sm pri" data-do="tab" data-t="' + (ROLE === "student" ? "hub" : "g9battle") + '" data-g9x="1">查看</button>');
     });
     myDs.filter(function (t) { return (t.startAt || 0) > (s.d || 0) && live(t); }).forEach(function (t) {
       toast("<b>⏱ 新的限時任務 B" + t.no + "</b>（" + t.mins + " 分鐘，剩 " + cd(t) + "）<div>" + E(t.text).slice(0, 80) + "</div>",
@@ -280,6 +346,10 @@ var KCG9 = (function () {
       ".g9thr{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:#000;border-radius:12px;margin-bottom:8px}" +
       "body button.pri.sm,body .g9t button.pri{color:#fff}" +
       "nav.tabs{flex-wrap:wrap;overflow-x:visible;row-gap:6px}nav.tabs button{flex:0 0 auto}" +
+      ".g9cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start;margin-bottom:12px}.g9cols>.card{margin:0;padding:10px;min-width:0}.g9cols h3{font-size:15px}" +
+      ".g9cols .scroll{overflow-x:auto;max-width:100%}.g9cols table{width:100%;min-width:0;table-layout:fixed;font-size:12px}.g9cols .nt{padding:4px 6px}.g9cols td,.g9cols th{overflow-wrap:anywhere}.g9cols table th,.g9cols table td{padding:4px 5px}.g9cols .qrow{flex-wrap:wrap;gap:4px 6px;font-size:13px}.g9cols .qno{flex:0 0 auto}.g9cols .qtx{flex:1 1 100%;order:3}.g9cols .qrow .b{font-size:11px}" +
+      ".g9rk{display:grid;grid-template-columns:2em 1fr auto;gap:4px;padding:3px 4px;border-bottom:1px solid #2e2e2e;font-size:13px}" +
+      ".g9tip{font-size:11px;padding:1px 5px;font-weight:700}" +
       ".g9m{max-width:85%;background:#2b2b2b;color:#f2f2f2;border:1px solid #3a3a3a;border-radius:12px;padding:6px 10px;align-self:flex-start}.g9m.me{align-self:flex-end;background:#1d4a37;border-color:#2c6b51}.g9m .mut{color:#a9b4c2!important}.g9m a{color:#8cc8ff}" +
       ".g9t button.sec{background:#2b2b2b!important;color:#fff!important;border-color:#555!important}" +
       "body .card.g9dark,body .g9dark{background:#111!important;color:#eee;border-color:#222!important}body .g9dark h3,body .g9dark b{color:#fff}body .g9dark .mut{color:#a9b4c2!important}" +
@@ -289,7 +359,7 @@ var KCG9 = (function () {
   })();
 
   /* ================= 掛載 ================= */
-  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team"] };
+  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave"], student: ["home", "leave", "att", "team", "notice"] };
   function mount(role, ctx) {
     ROLE = role; CTX = ctx;
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
@@ -297,11 +367,11 @@ var KCG9 = (function () {
     function after(k, tab) { var j = -1; T.forEach(function (t, x) { if (t[0] === k) j = x; }); T.splice(j + 1, 0, tab); }
     if (role === "admin") { after("pbl", ["g9disp", "⏱ 限時任務派送"]); after("g9disp", ["g9battle", "📣 戰況公告"]); after("g9battle", ["g9chat", "💬 小隊聯繫"]); V.g9disp = dispView; V.g9battle = battleAdmin; }
     if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "💬 小隊聯繫"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
-    if (role === "student") { after("quest", ["g9battle", "📣 闖關戰況"]); after("g9battle", ["g9chat", "💬 聯絡老師"]); V.g9battle = battleRecv; }
+    if (role === "student") { after("quest", ["g9chat", "💬 聯絡老師"]); }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
     V.notice = noticeView;
     T.forEach(function (t) { if (t[0] === "notice") t[1] = role === "admin" ? "📢 公告廣播" : "📢 公告"; });
-    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); var hn = root.querySelector("#h_note"); if (hn) hn.classList.add("g9dark"); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
+    if (window.KCQ) { var op = KCQ.post; KCQ.post = function (root) { op(root); try { tabBadges(root); var hn = root.querySelector("#h_note"); if (hn && hn.classList.contains("card")) hn.classList.add("g9dark"); if (ROLE === "student") qmPost(); [].forEach.call(root.querySelectorAll("audio[data-aud]"), function (a) { KCQ.getPhoto(a.getAttribute("data-aud")).then(function (d) { if (d) a.src = d; }); }); var th = $("g9thr"); if (th) th.scrollTop = th.scrollHeight; check(); } catch (e) {} }; }
 
     H.g9pick = function (d) { ui.chatTeam = d.team; ctx.render(); };
     H.g9goChat = function (d) { ui.chatTeam = d.team; H.tab({ t: "g9chat" }); };
@@ -314,6 +384,7 @@ var KCG9 = (function () {
     H.g9recCancel = function () { if (!rec) return; rec.send = false; rec.mr.stop(); };
     document.addEventListener("change", function (e) { if (e.target.id === "g9img" && e.target.files[0]) { var tid = e.target.getAttribute("data-team"), f = e.target.files[0]; e.target.value = ""; KCQ.compress(f, function (d) { sendMedia(tid, d, { key: "img" }, "圖片"); }); } });
     document.addEventListener("click", function (e) { var z = e.target.closest && e.target.closest("[data-g9zoom]"); if (z && z.src) { var w = window.open(""); if (w) w.document.write('<title>圖片</title><body style="margin:0;background:#000"><img src="' + z.src + '" style="max-width:100%;display:block;margin:auto">'); } });
+    H.g9qCenter = function () { if (QM.map && QM.me) QM.map.setView(QM.me, 17); else alert("尚未取得 GPS 位置，請確認已允許定位"); };
     H.g9openTask = function (d) { if (role !== "student") return; KCQ.openTask(d.id); H.tab({ t: "quest" }); };
     if (role !== "admin") return;
     H.g9disp = function () {
@@ -344,5 +415,5 @@ var KCG9 = (function () {
     document.addEventListener("change", function (e) { if (e.target.dataset && e.target.dataset.dpc && e.target.checked && $("dp_all")) $("dp_all").checked = false; if (e.target.id === "dp_all" && e.target.checked) [].forEach.call(document.querySelectorAll("[data-dpc]"), function (x) { x.checked = false; }); });
     document.addEventListener("change", function (e) { if (e.target.id === "dp_img" && e.target.files[0]) KCQ.compress(e.target.files[0], function (d) { ui.dImg = d; var keep = readDisp(); ctx.render(); try { $("dp_text").value = keep.text; $("dp_tip").value = keep.tip; $("dp_mode").value = keep.mode; $("dp_min").value = keep.mins; $("dp_pts").value = keep.pts; } catch (x) {} }); });
   }
-  return { mount: mount, ranking: ranking };
+  return { mount: mount, ranking: ranking, hubCols: hubCols };
 })();

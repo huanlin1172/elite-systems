@@ -249,7 +249,9 @@
     if (ui.task) return taskDetail(me, team);
     var sc = KCQ.score(team.id);
     var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　挑戰加分 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分。</p></div>";
-    [["A", "關卡列表"], ["B", "⏱ 限時挑戰（行政端核可後加分）"]].forEach(function (g) {
+    var G9 = window.ACT === "g9";
+    if (G9) html += '<div class="card"><h3>🗺️ 小隊與關卡即時位置</h3><div id="g9qmapHost"></div><p class="mut" id="g9qnote" style="margin:6px 0 0">正在取得 GPS 位置…</p></div><div class="g9cols">';
+    [["A", "關卡列表"], ["B", G9 ? "⏱ 限時挑戰" : "⏱ 限時挑戰（行政端核可後加分）"]].forEach(function (g) {
       var l = activeTasks(g[0]).filter(function (t) { return KCQ.forTeam(t, team) && (!onlyDisp || (t.disp && inWindow(t) === "open")); }); if (!l.length) return;
       if (g[0] === "B") l.sort(function (a, b) { var oa = a.endAt && inWindow(a) === "open" ? 0 : 1, ob = b.endAt && inWindow(b) === "open" ? 0 : 1; return oa - ob || (b.startAt || 0) - (a.startAt || 0) || a.no - b.no; });
       html += '<div class="card"><h3>' + g[1] + "</h3>" + l.map(function (t) {
@@ -258,6 +260,7 @@
         return '<div class="qrow"><b class="qno">' + g[0] + t.no + '</b><span class="qtx">' + E(t.cat === "A" && !(s && s.arrived) ? (t.code ? t.code + (t.addr ? "　" + t.addr.slice(0, 22) : "") : (t.place || "任務 " + t.no)) : (t.cat === "B" ? t.text.slice(0, 22) + " 〔" + (t.endAt ? (inWindow(t) === "open" ? "限時派送" : "已截止") : bWin(t)) + "｜+" + calcPts(t) + "〕" : (t.item || t.text).slice(0, 26))) + "</span>" + b + '<button class="sm pri" data-do="qOpen" data-id="' + t.id + '">開啟</button></div>';
       }).join("") + "</div>";
     });
+    if (G9) html += "</div>";
     return html || '<div class="card"><p class="mut">行政端尚未設定本次活動任務。</p></div>';
   }
   function taskDetail(me, team) {

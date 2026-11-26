@@ -184,6 +184,9 @@
   }
   function hubView(role, me) {
     loadWx(false, function () { KCH._r && KCH._r(); }); loadLib(function () { KCH._r && KCH._r(); });
+    if (window.ACT === "g9" && role === "student" && window.KCG9 && KCG9.hubCols)   /* G9 學生端：戰況＋公告分欄；不顯示幹部、花絮 */
+      return '<div class="row" style="gap:6px">' + [["h_rem", "提醒"], ["h_note", "戰況／公告"], ["h_wx", "天氣"], ["h_files", "檔案"]].map(function (x) { return '<a class="sm" href="#' + x[0] + '" style="text-decoration:none">' + x[1] + (KC.secBadge ? KC.secBadge(x[0]) : "") + "</a>"; }).join("") + "</div>" +
+        remView(role) + KCG9.hubCols(me) + wxView(role) + fileView(role);
     return '<div class="row" style="gap:6px">' + [["h_rem", "提醒"], ["h_note", "公告"], ["h_wx", "天氣"]].concat(RO(role) || (window.ACT === "g9" && role === "student") ? [] : [["h_crew", "幹部"]]).concat([["h_gal", window.ACT === "g10" ? "行前訓練花絮" : "花絮"], ["h_files", "檔案"]]).map(function (x) { return '<a class="sm" href="#' + x[0] + '" style="text-decoration:none">' + x[1] + (KC.secBadge ? KC.secBadge(x[0]) : "") + "</a>"; }).join("") + "</div>" +
       remView(role) + noteView(role, me) + wxView(role) + (window.ACT === "g9" && role === "student" ? "" : crewView(role, me)) + galView(role, me) + fileView(role);
   }
