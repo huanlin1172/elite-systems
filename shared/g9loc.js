@@ -68,7 +68,7 @@
     var go = function () {
       var el = $("lmap"); if (!el || !w.L) return;
       var c = KCQ.q().cfg.center; map = w.L.map(el).setView([c.lat, c.lng], 13); lay = w.L.layerGroup().addTo(map); fitted = false;
-      w.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
+      w.L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}", { subdomains: "0123", maxZoom: 20, attribution: "地圖資料 ©Google" }).addTo(map);
       KCQ.q().tasks.filter(function (t) { return t.active && t.useGps; }).forEach(function (t) { w.L.circleMarker([t.lat, t.lng], { radius: 5, color: "#2f6b9a", weight: 1, fillOpacity: .6 }).addTo(map).bindPopup(t.cat + t.no + " " + E(t.place || "")); });
       draw();
     };

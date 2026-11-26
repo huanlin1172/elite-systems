@@ -287,7 +287,7 @@ var KCG9 = (function () {
     if (QM.node.parentNode !== host) host.appendChild(QM.node);
     qmWatch();
     qmLoad(function () {
-      if (!QM.map) { var c = KCQ.q().cfg.center || { lat: 1.2839, lng: 103.8607 }; QM.map = window.L.map(QM.node).setView([c.lat, c.lng], 15); window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(QM.map); QM.lay = window.L.layerGroup().addTo(QM.map); }
+      if (!QM.map) { var c = KCQ.q().cfg.center || { lat: 1.2839, lng: 103.8607 }; QM.map = window.L.map(QM.node).setView([c.lat, c.lng], 15); window.L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}", { subdomains: "0123", maxZoom: 20, attribution: "地圖資料 ©Google" }).addTo(QM.map); QM.lay = window.L.layerGroup().addTo(QM.map); }
       setTimeout(function () { QM.map.invalidateSize(); qmDraw(); }, 0);
     });
   }

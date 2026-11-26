@@ -75,6 +75,8 @@
     r.bonus = r.timePts; r.e = 0;
     r.total = r.a + r.timePts - r.pen + r.b; return r;
   };
+  var GTILE = "https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&gl=SG&x={x}&y={y}&z={z}";
+  KCQ.GTILE = GTILE;
   function radiusOf(t) { return t && +t.radius > 0 ? +t.radius : (KCQ.q().cfg.radiusDefault || 120); }
   function calcPts(t) { return t && t.cat === "B" ? (t.pts == null || t.pts === "" ? 10 : +t.pts) : KCQ.q().cfg.perCP; }
 
@@ -185,7 +187,7 @@
       '<g font-weight="700" stroke="rgba(0,0,0,.65)" stroke-width="3" paint-order="stroke"><text x="100" y="30" text-anchor="middle" fill="#ff6b6b" font-size="17">北</text><text x="178" y="105" text-anchor="middle" fill="#fff" font-size="13">東</text><text x="100" y="187" text-anchor="middle" fill="#fff" font-size="13">南</text><text x="22" y="105" text-anchor="middle" fill="#fff" font-size="13">西</text></g>' +
       '<g id="qn-arrow"><polygon points="100,22 111,62 100,55 89,62" fill="#ffd54a" stroke="#222" stroke-width="1.5"/><line x1="100" y1="62" x2="100" y2="94" stroke="#ffd54a" stroke-width="2.5" stroke-dasharray="4 4"/></g></g>' +
       '<circle cx="100" cy="100" r="7" fill="#2f80ed" stroke="#fff" stroke-width="3"/></svg></div>' +
-      '<div class="qn-att" id="qn-att">地圖 © OpenStreetMap 貢獻者</div>' +
+      '<div class="qn-att" id="qn-att">地圖資料 ©Google</div>' +
       '<div class="qn-d" id="qn-d">定位中…</div><div class="qn-s" id="qn-s"></div><div class="qn-t" id="qn-t">📡 取得位置中</div><div class="qn-s" id="qn-a" style="margin-top:6px"></div>' +
       '<div class="row" style="justify-content:center"><button class="sm sec" style="background:#fff" data-do="qNavStop">關閉導航</button></div></div>';
   }
@@ -210,7 +212,7 @@
     if (!nav.map || nav.map.getContainer() !== el) {
       if (nav.map) try { nav.map.remove(); } catch (e) {}
       var m = nav.map = w.L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false, tap: false });
-      w.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(m);
+      w.L.tileLayer(GTILE, { subdomains: "0123", maxZoom: 20 }).addTo(m);
       nav.layers = {
         c: w.L.circle([t.lat, t.lng], { radius: radiusOf(t), color: "#ffd54a", weight: 2, fillColor: "#ffd54a", fillOpacity: .25 }).addTo(m),
         p: w.L.circleMarker([t.lat, t.lng], { radius: 9, color: "#fff", weight: 3, fillColor: "#e53935", fillOpacity: 1 }).addTo(m)
@@ -250,8 +252,14 @@
     if (!team) return '<div class="card"><p class="mut">尚未編組，編組完成後即可闖關。</p></div>';
     var es = KCQ.eventState(), onlyDisp = es !== "open" && q.tasks.some(function (t) { return t.disp && t.active && inWindow(t) === "open" && KCQ.forTeam(t, team); });
     if (onlyDisp) es = "open";   /* 闖關時段外，仍可作答行政端派送中的限時任務 */
-    if (es !== "open") return '<div class="card"><h3>闖關</h3><p>' + (es === "before" ? "活動尚未開始（" + E(q.cfg.date) + " " + E(q.cfg.startT) + " 開放）" : "活動已結束") + "</p></div>";
+    var TB = testOn() ? '<div class="row" style="margin:0 0 8px"><button class="sec" data-do="qTest">🧪 關卡測試（不需定位、不計分）</button></div>' : "";
+    if (ui.test) return testView();
+    if (es !== "open") return TB + '<div class="card"><h3>闖關</h3><p>' + (es === "before" ? "活動尚未開始（" + E(q.cfg.date) + " " + E(q.cfg.startT) + " 開放）" : "活動已結束") + "</p></div>";
     if (ui.task) return taskDetail(me, team);
+    if (TB) return TB + listView(q, team, onlyDisp);
+    return listView(q, team, onlyDisp);
+  }
+  function listView(q, team, onlyDisp) {
     var sc = KCQ.score(team.id);
     var html = '<div class="card"><h3>' + E(team.name) + '</h3><div class="grid"><div class="stat"><b>' + sc.total + "</b><span>目前總分</span></div><div class=\"stat\"><b>" + sc.aDone + "／" + activeTasks("A").length + "</b><span>關卡完成</span></div><div class=\"stat\"><b>" + elapsed(q.cfg, sc) + "</b><span>已用時間</span></div><div class=\"stat\"><b style=\"color:var(--no)\">-" + sc.pen + "</b><span>答錯扣分（" + sc.wrongN + " 次）</span></div></div>" + '<p class="mut">關卡分 ' + sc.a + "　挑戰加分 " + sc.b + "　時間分 " + (sc.done ? sc.timePts : "（全部通關後計算）") + "　扣分 " + sc.pen + "。每關 " + q.cfg.perCP + " 分；" + q.cfg.tFull + " 分鐘內通關得時間分 " + q.cfg.tMax + "，之後每分鐘扣 " + q.cfg.tDec + " 分；答錯一次扣 " + q.cfg.wrong + " 分。</p></div>";
     var G9 = window.ACT === "g9";
@@ -267,6 +275,41 @@
     });
     if (G9) html += "</div>";
     return html || '<div class="card"><p class="mut">行政端尚未設定本次活動任務。</p></div>';
+  }
+  /* 關卡測試：不觸發 GPS、不寫入任何作答紀錄，也不扣分 */
+  function testOn() { return window.ACT === "g9" && KCQ.q().cfg.testOn !== false; }
+  function testView() {
+    var q = KCQ.q(), T = ui.test;
+    if (!testOn()) { ui.test = null; return '<div class="card"><p class="mut">行政端已關閉關卡測試。</p><button class="sec" data-do="qTestExit">← 回闖關</button></div>'; }
+    var head = '<div class="card" style="border:2px dashed var(--wn,#e0a000)"><div class="row"><b>🧪 關卡測試模式</b><span class="mut">不需定位、不計分、不扣分，作答不會送出</span><button class="sm sec" data-do="qTestExit">結束測試</button></div></div>';
+    if (!T.id) {
+      return head + '<div class="card"><h3>選擇要測試的關卡</h3>' + activeTasks("A").map(function (t) {
+        return '<div class="qrow"><b class="qno">' + E(t.code || "A" + t.no) + '</b><span class="qtx">' + E((t.place || t.item || "") + (t.item && t.place ? "：" + t.item : "")) + '</span><button class="sm sec" data-do="qTOpen" data-id="' + t.id + '">開始</button></div>';
+      }).join("") + "</div>";
+    }
+    var t = taskById(T.id); if (!t) { T.id = null; return testView(); }
+    var d = ui.draft, ok = T.ok, ty = atypeOf(t), needAns = t.mode === "text" || t.mode === "match" || t.mode === "matchAuto";
+    var h = head + '<div class="card"><div class="row"><button class="sm sec" data-do="qTBack">← 關卡清單</button><b>' + E(t.code || "A" + t.no) + "</b> " + badge(MODES[t.mode], "gr") + "</div>";
+    h += '<p class="mut">📍 ' + E(t.place || "") + (t.addr ? "　" + E(t.addr) : "") + "（正式闖關需走進觸發半徑 " + radiusOf(t) + " 公尺內才會解鎖）</p>";
+    if (t.hint) h += '<h3 style="margin-top:12px">① 地圖判讀</h3><p>' + E(t.hint) + "</p>";
+    if (t.item) h += "<h3>" + E(t.item) + "</h3>";
+    if (t.intro) h += '<h3 style="margin-top:12px">關卡故事</h3>' + story(t.intro, t) + (t.introImg ? img(t.introImg) : "");
+    h += '<h3 style="margin-top:12px">② 謎題</h3><p style="white-space:pre-wrap">' + E(t.text) + "</p>" + (t.clueImg ? "<p>" + img(t.clueImg) + "</p>" : "") + (t.note ? '<p class="mut" style="white-space:pre-wrap">' + E(t.note) + "</p>" : "");
+    if (t.tip) h += T.tip ? '<div class="nt"><b>💡 提示</b>　' + E(t.tip) + (t.tipImg ? "<br>" + img(t.tipImg) : "") + "</div>" : '<div class="row"><button class="sm sec" data-do="qTTip">💡 需要提示</button></div>';
+    if (needAns) {
+      var inputs = "";
+      if (ty === "choice") inputs = optLetters(t).map(function (L) { return '<label style="display:inline-block;margin:4px 10px 4px 0"><input type="checkbox" data-qsel="' + L + '"' + ((d.sel || []).indexOf(L) >= 0 ? " checked" : "") + (ok ? " disabled" : "") + "> " + L + "</label>"; }).join("");
+      else if (nparts(t) > 1) { for (var pi = 0; pi < nparts(t); pi++) inputs += '<input data-qin="p' + pi + '" placeholder="第 ' + (pi + 1) + ' 格" value="' + E(d["p" + pi] || "") + '" style="min-width:130px"' + (ok ? " disabled" : "") + ">"; }
+      else inputs = '<input data-qin="ans" value="' + E(d.ans || "") + '" style="flex:1;min-width:160px"' + (ok ? " disabled" : "") + ">";
+      h += "<label>你們的答案" + (T.wrong ? "（測試中答錯 " + T.wrong + " 次，不扣分）" : "") + (ty === "choice" ? "（可複選）" : "") + '</label><div class="row">' + inputs + (ok ? "" : '<button class="pri" data-do="qTAns">核對答案</button>') + "</div>";
+      if (ok) h += "<p>" + badge("答對了！", "ok") + "</p>"; else if (T.msg) h += '<p class="mut">' + E(T.msg) + "</p>";
+      if (t.answer) h += T.show || ok ? "<p>正確答案：<b>" + E(String(t.answer).split("/").map(function (x) { return x.split("|")[0]; }).join(" / ")) + "</b></p>" : '<div class="row"><button class="sm sec" data-do="qTShow">👀 顯示正確答案</button></div>';
+    }
+    if (ok || !needAns) { if (t.after) h += "<h3>後續故事</h3>" + story(t.after, t); if (t.afterImg) h += img(t.afterImg); }
+    if (t.mode !== "matchAuto") h += '<h3 style="margin-top:12px">③ ' + (t.mode === "media" ? "上傳成果" : "拍照") + '</h3><p class="mut">' + E(t.photoTip || "") + "（正式闖關時在這裡拍照上傳；測試模式不送出）</p>";
+    var L = activeTasks("A"), i = L.indexOf(t);
+    h += '<div class="row" style="margin-top:12px">' + (i > 0 ? '<button class="sec" data-do="qTOpen" data-id="' + L[i - 1].id + '">← 上一關</button>' : "") + (i < L.length - 1 ? '<button class="sec" data-do="qTOpen" data-id="' + L[i + 1].id + '">下一關 →</button>' : "") + "</div>";
+    return h + "</div>";
   }
   function taskDetail(me, team) {
     var t = taskById(ui.task); if (!t) { ui.task = null; return studentView(me); }
@@ -316,6 +359,21 @@
     return h + "</div>";
   }
   var studentH = {
+    qTest: function (d, el, c) { stopNav(); ui.task = null; ui.test = {}; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
+    qTestExit: function (d, el, c) { ui.test = null; ui.draft = {}; c.render(); },
+    qTOpen: function (d, el, c) { ui.test = { id: d.id }; ui.draft = {}; c.render(); window.scrollTo(0, 0); },
+    qTBack: function (d, el, c) { ui.test = {}; ui.draft = {}; c.render(); },
+    qTTip: function (d, el, c) { ui.test.tip = 1; c.render(); },
+    qTShow: function (d, el, c) { ui.test.show = 1; c.render(); },
+    qTAns: function (d, el, c) {
+      var T = ui.test, t = taskById(T.id), ty = atypeOf(t), vals;
+      if (ty === "choice") vals = ui.draft.sel || [];
+      else if (nparts(t) > 1) { vals = []; for (var i = 0; i < nparts(t); i++) vals.push(String(ui.draft["p" + i] || "").trim()); }
+      else vals = [String(ui.draft.ans || "").trim()];
+      if (!vals.length || vals.some(function (x) { return !x; })) { T.msg = "請先把答案填完整"; return c.render(); }
+      if (checkAns(t, vals)) { T.ok = 1; T.msg = ""; } else { T.wrong = (T.wrong || 0) + 1; T.msg = "答案不對（測試模式不扣分）"; }
+      c.render();
+    },
     qOpen: function (d, el, c) { stopNav(); ui.task = d.id; ui.tipOpen = null; ui.draft = {}; ui.photo = null; ui.msg = ""; ui.fails = 0; c.render(); },
     qBack: function (d, el, c) { stopNav(); ui.task = null; c.render(); },
     qNavStart: function (d, el, c) { startNav(ui.task, c); },
@@ -408,6 +466,7 @@
     return '<div class="card"><h3>活動時程</h3><div class="row"><label style="margin:0">日期 <input type="date" id="c_date" value="' + E(c.date) + '"></label><label style="margin:0">開始 <input type="time" id="c_st" value="' + E(c.startT) + '"></label><label style="margin:0">結束 <input type="time" id="c_en" value="' + E(c.endT) + '"></label></div>' +
       '<div class="row"><label style="margin:0"><input type="checkbox" id="c_force"' + (c.force ? " checked" : "") + '> 強制開放（測試用，忽略時間）</label></div><p class="mut">日期留空＝不限制時間。</p></div>' +
       '<div class="card"><h3>計分規則（比照 Popworld 城市探索）</h3><div class="row">' + num("c_nl", "本次關數", c.nLevels) + num("c_pc", "每關得分", c.perCP) + num("c_w", "答錯一次扣", c.wrong) + num("c_tm", "時間分滿分", c.tMax) + num("c_tf", "滿分時限（分鐘）", c.tFull) + num("c_td", "超時每分鐘扣", c.tDec) + (window.ACT === "g9" ? num("c_bp", "限時任務每題", c.bPts || 50) + num("c_bn", "限時任務題數", c.bN || 0) : "") + "</div>" +
+      (window.ACT === "g9" ? '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">🧪 學生端關卡測試</h4><label style="margin:0"><input type="checkbox" id="c_test"' + (c.testOn !== false ? " checked" : "") + '> 開放學生端「關卡測試」（不需定位就能看到每一關的題目並核對答案，不計分）</label><p class="mut">正式活動當天請取消勾選並儲存，否則小隊可以提前看到所有題目。</p></div>' : "") +
       '<div class="card" style="margin:10px 0"><h4 style="margin:0 0 6px">📍 題目觸發半徑</h4><div class="row">' + num("c_rd", "預設觸發半徑（公尺）", c.radiusDefault) + '<button class="sec" data-do="qRadiusAll">套用到全部題目（覆蓋個別設定）</button></div><p class="mut">學生走進目標點此半徑內（再加上手機定位誤差，最多 +50 公尺）即可打卡並看到題目。個別題目可在「編輯題目」中自訂，填 0 表示使用預設值。</p></div>' +
       '<p class="mut">總分 ＝ 時間分數 ＋ 每關得分 × 通過關數 − 答錯次數 × 扣分。時間分數：自活動開始時間起算，' + c.tFull + " 分鐘內全部通關得 " + c.tMax + " 分；超過後每分鐘扣 " + c.tDec + " 分，扣到 0 為止（約 " + (c.tFull + Math.ceil(c.tMax / Math.max(1, c.tDec))) + " 分鐘）。需全部關卡通過才計時間分，且需設定活動日期。設定 " + c.nLevels + " 關" + (c.bN ? "；另設限時任務 " + (c.bPts || 50) + " 分／題，共 " + c.bN + " 題 " + (c.bPts || 50) * c.bN + " 分" : "") + "。滿分 " + (c.tMax + c.perCP * c.nLevels + (c.bN ? (c.bPts || 50) * c.bN : 0)) + " 分（關卡 " + (c.perCP * c.nLevels) + " ＋ 時間 " + c.tMax + (c.bN ? " ＋ 限時任務 " + (c.bPts || 50) * c.bN : "") + "）。</p>" + (activeTasks("A").length !== c.nLevels ? '<p class="b no" style="display:block">⚠️ 題庫目前啟用 ' + activeTasks("A").length + " 關，與設定的 " + c.nLevels + ' 關不符，請到「任務題庫」勾選本次使用的題目（或按「僅啟用前 ' + c.nLevels + ' 題」）。</p>' : '<p class="mut">題庫啟用關數與設定相符 ✔</p>') + "</div>" +
       '<div class="card"><h3>重新開始</h3><p class="mut">清除所有小隊的闖關紀錄與定位，題庫與設定保留。測試後正式開跑前使用。</p><div class="row"><input id="c_rs" placeholder="輸入 RESET 確認" style="width:150px"><button class="dng" data-do="qReset">清除闖關紀錄</button></div></div>' +
@@ -440,7 +499,7 @@
       '<div class="row"><label style="margin:0"><input type="checkbox" data-qe="useGps"' + (e.useGps ? " checked" : "") + '> 啟用 GPS 抵達打卡</label></div>' +
       '<div class="row"><label style="margin:0">緯度 <input data-qe="lat" value="' + e.lat + '" style="width:120px"></label><label style="margin:0">經度 <input data-qe="lng" value="' + e.lng + '" style="width:120px"></label><label style="margin:0">觸發半徑(公尺，0＝用預設 '+(KCQ.q().cfg.radiusDefault||120)+') <input type="number" min="0" data-qe="radius" value="' + e.radius + '" style="width:90px"></label></div>' +
       '<div class="row"><label style="margin:0">貼上 Google Maps 座標 <input id="q_paste" placeholder="1.2868, 103.8545" style="width:180px"></label><button class="sm sec" data-do="qPaste">套用</button></div>' +
-      '<div class="row"><label style="margin:0">挑戰完成加分 <input type="number" data-qe="pts" value="' + (e.pts == null ? 10 : e.pts) + '" style="width:80px"></label><label style="margin:0">B 開放時間 <input type="time" data-qe="bStart" value="' + E(e.bStart) + '"></label><label style="margin:0">完成期限 <input type="time" data-qe="bEnd" value="' + E(e.bEnd) + '"></label></div>' +
+      (e.cat === "B" ? '<div class="row"><label style="margin:0">限時挑戰分數 <input type="number" data-qe="pts" value="' + (e.pts == null ? 10 : e.pts) + '" style="width:80px"></label><label style="margin:0">B 開放時間 <input type="time" data-qe="bStart" value="' + E(e.bStart) + '"></label><label style="margin:0">完成期限 <input type="time" data-qe="bEnd" value="' + E(e.bEnd) + '"></label></div>' : '<p class="mut">關卡分數一律依「⚙️ 闖關設定」的每關得分計算（目前 ' + KCQ.q().cfg.perCP + ' 分）。</p>') +
       '<label>標準對照照片（教師審核用，學生看不到）</label><input type="file" accept="image/*" data-qref="1">' + (e.refPhoto ? "<p>" + img(e.refPhoto) + "</p>" : "") +
       '<div class="row"><label style="margin:0"><input type="checkbox" data-qe="active"' + (e.active ? " checked" : "") + '> 本次活動使用</label></div><div class="row"><button class="pri" data-do="qSaveTask">儲存</button><button class="sec" data-do="qCancel">取消</button></div></div>';
   }
@@ -496,7 +555,7 @@
     qSaveCfg: function (d, el, c) {
       var q = KCQ.q(), g = function (i) { return +$(i).value || 0; }, cf = q.cfg;
       cf.date = $("c_date").value; cf.startT = $("c_st").value || "13:30"; cf.endT = $("c_en").value || "21:00"; cf.force = $("c_force").checked;
-      cf.nLevels = g("c_nl"); cf.perCP = g("c_pc"); cf.wrong = g("c_w"); cf.tMax = g("c_tm"); cf.tFull = g("c_tf"); cf.tDec = g("c_td"); if ($("c_bp")) { cf.bPts = g("c_bp"); cf.bN = g("c_bn"); } cf.radiusDefault = Math.max(10, g("c_rd") || 120);
+      cf.nLevels = g("c_nl"); cf.perCP = g("c_pc"); cf.wrong = g("c_w"); cf.tMax = g("c_tm"); cf.tFull = g("c_tf"); cf.tDec = g("c_td"); if ($("c_bp")) { cf.bPts = g("c_bp"); cf.bN = g("c_bn"); } cf.radiusDefault = Math.max(10, g("c_rd") || 120); if ($("c_test")) cf.testOn = $("c_test").checked;
       cf.center = { name: cf.center.name, lat: parseFloat($("c_lat").value) || cf.center.lat, lng: parseFloat($("c_lng").value) || cf.center.lng }; c.done(); alert("已儲存");
     },
     qPre: function (d, el, c) { var p = PRESETS[+el.value]; $("c_lat").value = p[1]; $("c_lng").value = p[2]; },
@@ -555,7 +614,7 @@
     var go = function () {
       var el = $("qmap"); if (!el || !w.L) return;
       var q = KCQ.q(), c = q.cfg.center, m = w.L.map(el).setView([c.lat, c.lng], 13);
-      w.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(m);
+      w.L.tileLayer(GTILE, { subdomains: "0123", maxZoom: 20, attribution: "地圖資料 ©Google" }).addTo(m);
       q.tasks.filter(function (t) { return t.active && t.useGps; }).forEach(function (t) { w.L.circleMarker([t.lat, t.lng], { radius: 7, color: "#2f6b9a", fillOpacity: .8 }).addTo(m).bindPopup(t.cat + t.no + " " + E(t.place || "")); w.L.circle([t.lat, t.lng], { radius: radiusOf(t), color: "#2f6b9a", weight: 1, fillOpacity: .08 }).addTo(m); });
       Object.keys(q.pings).forEach(function (id) { var p = q.pings[id], tm = KC.team(id); if (p.lat) w.L.circleMarker([p.lat, p.lng], { radius: 9, color: "#d9822b", fillOpacity: .9 }).addTo(m).bindPopup(E(tm ? tm.name : id)); });
     };
