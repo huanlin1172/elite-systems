@@ -400,7 +400,7 @@ var KCG9 = (function () {
   function pendKeys() { var q = KCQ.q(); return Object.keys(q.subs).filter(function (k) { return q.subs[k].status === "pending"; }); }
 
   /* ================= 掛載 ================= */
-  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave", "notice", "qreview", "pbl", "score"], student: ["home", "leave", "att", "team", "notice"] };
+  var DROP = { admin: ["home", "roster", "signup", "teams", "att", "leave", "qmsg"], teacher: ["roll", "leave", "notice", "qreview", "pbl", "score", "qrank"], student: ["home", "leave", "att", "team", "notice"] };
   function mount(role, ctx) {
     ROLE = role; CTX = ctx;
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
