@@ -116,7 +116,7 @@ var KCG9 = (function () {
   function markRead(tid) { var m = readMap(), l = chat(tid).slice(-1)[0]; m[tid] = l ? l.t : Date.now(); try { localStorage.setItem(rk(), JSON.stringify(m)); } catch (e) {} }
   function incoming(msg) { return ROLE === "student" ? msg.from !== "student" : msg.from === "student"; }
   function unread(tid) { var since = readMap()[tid] || 0; return chat(tid).filter(function (m) { return incoming(m) && (m.t || 0) > since; }).length; }
-  function who(m) { return m.from === "student" ? "🧑‍🎓 " + (m.by || "學生") : m.from === "teacher" ? "👩‍🏫 " + (m.by || "導師") : "🏫 " + (m.by || "行政"); }
+  function who(m) { return m.from === "student" ? "🧑‍🎓 " + (m.by || "學生") : m.from === "teacher" ? "👩‍🏫 " + (m.by || "導師") : "🏫 " + (m.by === "行政" || !m.by ? "總部" : m.by); }
   function thread(tid) {
     var mine = ROLE === "student" ? "student" : ROLE;
     var list = chat(tid);
@@ -139,13 +139,13 @@ var KCG9 = (function () {
     if (!list.some(function (t) { return t.id === ui.chatTeam; })) ui.chatTeam = (list.filter(function (t) { return unread(t.id); })[0] || list[0] || {}).id || "";
     var t = KC.team(ui.chatTeam);
     return (ROLE === "teacher" ? '<div class="card g9dark"><h3>📢 傳給全班 ' + list.length + " 個小隊</h3>" + '<div class="row" style="align-items:flex-end"><textarea id="g9all" placeholder="例：請各隊 16:00 前回到集合點" style="flex:1;min-height:56px;margin:0"></textarea><button class="pri" data-do="g9sendAll">全部傳送</button></div></div>' : "") +
-      '<div class="card g9dark"><h3>💬 小隊聯繫</h3>' + (ROLE === "admin" ? '<div class="row"><select data-do="g9rk"><option value="">全部班級</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (ui.rkCls === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" : "") +
+      '<div class="card g9dark"><h3>📞 小隊 CALL OUT</h3>' + (ROLE === "admin" ? '<div class="row"><select data-do="g9rk"><option value="">全部班級</option>' + CLS.map(function (c) { return '<option value="' + c + '"' + (ui.rkCls === c ? " selected" : "") + ">" + c + " 班</option>"; }).join("") + "</select></div>" : "") +
       '<div class="row">' + list.map(teamBtn).join("") + "</div>" +
       (t ? '<h4 style="margin:10px 0 6px">' + E(code(t)) + "　" + E(theme(t)) + "</h4>" + thread(t.id) : '<p class="mut">尚無小隊，請行政端先在「📚 專題小隊」按「套用為小隊編組」。</p>') + "</div>";
   }
   function chatStudent() {
     var t = myTeam(); if (!t) return '<div class="card"><p class="mut">尚未編入小隊，無法聯繫。</p></div>';
-    return '<div class="card g9dark"><h3>💬 ' + E(code(t)) + " 與老師聯繫</h3><p class=\"mut\" style=\"margin-top:0\">訊息會傳給 " + E(clsOf(t)) + " 班導師與行政端。</p>" + thread(t.id) + "</div>";
+    return '<div class="card g9dark"><h3>📞 CALL OUT總部｜' + E(code(t)) + "</h3><p class=\"mut\" style=\"margin-top:0\">遇到狀況、需要協助，立即回報總部（可傳文字、照片、語音）。訊息會同時傳給總部與 " + E(clsOf(t)) + " 班導師。</p>" + thread(t.id) + "</div>";
   }
   function post(tid, text, extra) { KC.S.chat = KC.S.chat || []; var m = me(); KC.S.chat.push(Object.assign({ id: "c" + KC.uid(), kind: "chat", team: tid, from: ROLE, by: ROLE === "student" ? (m && m.name) || "" : ROLE === "teacher" ? myCls() + " 導師" : "行政", text: (window.KCTEST && ROLE === "student" && text ? "🧪測試｜" : "") + text, at: stamp(), t: Date.now() }, extra || {})); }
   /* 圖片與語音：檔案存在 photos 集合（與闖關照片相同），訊息只記錄編號 */
@@ -325,7 +325,7 @@ var KCG9 = (function () {
         ROLE === "student" ? '<button class="sm pri" data-do="g9openTask" data-id="' + t.id + '" data-g9x="1">開始作答</button>' : '<button class="sm pri" data-do="tab" data-t="g9cls" data-g9x="1">查看</button>');
     });
     var nc = chats.filter(function (x) { return (x.t || 0) > (s.c || 0); });
-    if (nc.length) { var l = nc[nc.length - 1], lt = KC.team(l.team); toast("<b>💬 " + (ROLE === "student" ? "老師傳來訊息" : E(code(lt)) + " 傳來訊息") + "</b><div>" + (l.img ? "📷 圖片" : l.audio ? "🎤 語音訊息" : E(l.text).slice(0, 80)) + "</div>", '<button class="sm pri" data-do="g9goChat" data-team="' + E(l.team) + '" data-g9x="1">回覆</button>'); }
+    if (nc.length) { var l = nc[nc.length - 1], lt = KC.team(l.team); toast("<b>" + (ROLE === "student" ? "💬 總部回覆" : "📞 " + E(code(lt)) + " CALL OUT") + "</b><div>" + (l.img ? "📷 圖片" : l.audio ? "🎤 語音訊息" : E(l.text).slice(0, 80)) + "</div>", '<button class="sm pri" data-do="g9goChat" data-team="' + E(l.team) + '" data-g9x="1">回覆</button>'); }
     seenSet({ b: Math.max(cur.b, s.b || 0), d: Math.max(cur.d, s.d || 0), c: Math.max(cur.c, s.c || 0) });
   }
   function tabBadges(root) {
@@ -367,9 +367,9 @@ var KCG9 = (function () {
     var T = ctx.TABS, V = ctx.V, H = ctx.H;
     for (var i = T.length - 1; i >= 0; i--) if (DROP[role].indexOf(T[i][0]) >= 0) T.splice(i, 1);
     function after(k, tab) { var j = -1; T.forEach(function (t, x) { if (t[0] === k) j = x; }); T.splice(j + 1, 0, tab); }
-    if (role === "admin") { after("pbl", ["g9disp", "⏱ 限時任務派送"]); after("g9disp", ["g9battle", "📣 戰況公告"]); after("g9battle", ["g9chat", "💬 小隊聯繫"]); V.g9disp = dispView; V.g9battle = battleAdmin; }
-    if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "💬 小隊聯繫"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
-    if (role === "student") { after("quest", ["g9chat", "💬 聯絡老師"]); }
+    if (role === "admin") { after("pbl", ["g9disp", "⏱ 限時任務派送"]); after("g9disp", ["g9battle", "📣 戰況公告"]); after("g9battle", ["g9chat", "📞 小隊 CALL OUT"]); V.g9disp = dispView; V.g9battle = battleAdmin; }
+    if (role === "teacher") { after("hub", ["g9cls", "🏫 我的班級"]); after("g9cls", ["g9chat", "📞 小隊 CALL OUT"]); after("g9chat", ["g9battle", "📣 闖關戰況"]); V.g9cls = clsView; V.g9battle = battleRecv; }
+    if (role === "student") { after("quest", ["g9chat", "📞 CALL OUT總部"]); }
     V.g9chat = role === "student" ? chatStudent : chatStaff;
     V.notice = noticeView;
     T.forEach(function (t) { if (t[0] === "notice") t[1] = role === "admin" ? "📢 公告廣播" : "📢 公告"; });
