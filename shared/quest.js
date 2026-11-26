@@ -117,7 +117,10 @@
       var i = q.tasks.map(function (t) { return t.code; }).indexOf(b.code);
       if (i >= 0) { q.tasks[i] = Object.assign({}, q.tasks[i], base); upd++; } else { base.id = KC.uid() + b.code; q.tasks.push(base); add++; }
     });
-    return [add, upd];
+    /* 題庫是「指定關卡」清單：不在題庫裡的舊 CP 關卡一律停用（不刪除，保留紀錄） */
+    var codes = B.map(function (b) { return b.code; }), off = 0;
+    q.tasks.forEach(function (t) { if (t.cat === "A" && /^CP\d+$/.test(t.code || "") && codes.indexOf(t.code) < 0 && t.active) { t.active = false; off++; } });
+    return [add, upd, off];
   }
 
   KCQ.importBank = importBank;
@@ -472,7 +475,7 @@
     qFilter: function (d, el, c) { ui.filter = d.v; ui.edit = null; c.render(); },
     qNewTask: function (d, el, c) { ui.edit = { _new: true, id: KC.uid(), cat: ui.filter, no: KCQ.q().tasks.filter(function (t) { return t.cat === ui.filter; }).length + 1, text: "", hint: "", mode: ui.filter === "B" ? "media" : "photo", pts: 10, answer: "", lat: KCQ.q().cfg.center.lat, lng: KCQ.q().cfg.center.lng, radius: 150, useGps: false, photoTip: "", bStart: "", bEnd: "", fields: [], active: true, place: "" }; c.render(); },
     qFirstN: function (d, el, c) { var q = KCQ.q(), n = q.cfg.nLevels; if (!confirm("依題號只啟用前 " + n + " 題，其餘停用，確定？")) return; q.tasks.filter(function (t) { return t.cat === "A"; }).sort(function (a, b) { return a.no - b.no; }).forEach(function (t, i) { t.active = i < n; }); c.done(); },
-    qBank: function (d, el, c) { if (!confirm("將匯入／更新題庫 " + (window.KCQ_BANK || []).length + " 題（同題號 CPn 會被覆蓋，其他題目保留），確定？")) return; var r = importBank(); c.done(); alert("完成：新增 " + r[0] + " 題、更新 " + r[1] + " 題。標示「座標待確認」的題請現場校正。"); },
+    qBank: function (d, el, c) { if (!confirm("將匯入題庫 " + (window.KCQ_BANK || []).length + " 關指定關卡：同題號 CPn 會被覆蓋，不在題庫中的舊 CP 關卡會停用（紀錄保留），確定？")) return; var r = importBank(); c.done(); alert("完成：新增 " + r[0] + " 題、更新 " + r[1] + " 題" + (r[2] ? "，停用不在題庫中的舊關卡 " + r[2] + " 題" : "") + "。標示「座標待確認」的題請現場校正。"); },
     qImgDel: function (d, el, c) { readForm(); ui.edit[d.f] = ""; c.render(); },
     qSeed: function (d, el, c) { var n = seed(); c.done(); alert("已載入 " + n + " 題（座標為概略位置，請現場勘查後校正）"); },
     qEdit: function (d, el, c) { ui.edit = JSON.parse(JSON.stringify(taskById(d.id))); c.render(); },
